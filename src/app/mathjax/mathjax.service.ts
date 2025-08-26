@@ -1,284 +1,544 @@
-//mathjax.service.ts
-import { Injectable, ComponentRef, Type, inject, EnvironmentInjector, createComponent, ApplicationRef } from '@angular/core';
-import {BehaviorSubject, filter, firstValueFrom, Observable, take} from 'rxjs';
+// mathjax.service.ts - Corrected for mathjax-full
+import { Injectable } from '@angular/core';
+import { mathjax } from 'mathjax-full/js/mathjax';
+import { TeX } from 'mathjax-full/js/input/tex';
+import { SVG } from 'mathjax-full/js/output/svg';
+import { liteAdaptor } from 'mathjax-full/js/adaptors/liteAdaptor';
+import { RegisterHTMLHandler } from 'mathjax-full/js/handlers/html';
+import { AllPackages } from 'mathjax-full/js/input/tex/AllPackages';
+import { MathList } from 'mathjax-full/js/core/MathList';
+import { MathItem } from 'mathjax-full/js/core/MathItem';
 
-declare global {
-  interface Window {
-    MathJax: any;
-  }
+export interface MathJaxConfig {
+  packages?: string[];
+  macros?: { [key: string]: string };
+  tags?: 'none' | 'ams' | 'all';
+  tagSide?: 'right' | 'left';
+  tagIndent?: string;
+  section?: number;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class MathJaxService {
+  private adaptor: any;
+  private inputJax: any;
+  private outputJax: any;
+  private mathDocument: any;
+  private isInitialized = false;
+  private currentSection = 1;
 
-  // Hooks the service into the Angular application's lifecycle.
-  private readonly appRef = inject(ApplicationRef);
-  // This allows us to dynamically create components/services at runtime, often with the
-  // `ViewContainerRef.createComponent` method.
-  private readonly injector = inject(EnvironmentInjector);
+  private defaultMacros = {
+    // Greek letters
+    'uupsilon': '\\pmb{\\upsilon}',
+    'llambda': '\\pmb{\\lambda}',
+    'bbeta': '\\pmb{\\beta}',
+    'aalpha': '\\pmb{\\alpha}',
+    'zzeta': '\\pmb{\\zeta}',
+    'etaeta': '\\boldsymbol{\\eta}',
+    'xixi': '\\boldsymbol{\\xi}',
+    'ep': '\\boldsymbol{\\epsilon}',
+    'DEL': '\\boldsymbol{\\Delta}',
+    'PHI': '\\boldsymbol{\\Phi}',
+    'PI': '\\boldsymbol{\\Pi}',
+    'LAM': '\\boldsymbol{\\Lambda}',
+    'LAMm': '\\mathbb{L}',
+    'GAM': '\\boldsymbol{\\Gamma}',
+    'OMG': '\\boldsymbol{\\Omega}',
+    'SI': '\\boldsymbol{\\Sigma}',
+    'TH': '\\boldsymbol{\\Theta}',
+    'UPS': '\\boldsymbol{\\Upsilon}',
+    'XI': '\\boldsymbol{\\Xi}',
 
-  private isLoaded$ = new BehaviorSubject<boolean>(false);
-  private isLoading = false;
-  private registeredComponents = new Map<string, Type<any>>();
-  private componentInstances = new Map<string, ComponentRef<any>>();
+    // Matrix/vector notation
+    'AA': '\\mathbf{A}', 'aa': '\\mathbf{a}',
+    'BB': '\\mathbf{B}', 'bb': '\\mathbf{b}',
+    'CC': '\\mathbf{C}', 'cc': '\\mathbf{c}',
+    'DD': '\\mathbf{D}', 'dd': '\\mathbf{d}',
+    'EE': '\\mathbf{E}', 'ee': '\\mathbf{e}',
+    'FF': '\\mathbf{F}', 'ff': '\\mathbf{f}',
+    'GG': '\\mathbf{G}', 'gg': '\\mathbf{g}',
+    'HH': '\\mathbf{H}', 'hh': '\\mathbf{h}',
+    'II': '\\mathbf{I}', 'ii': '\\mathbf{i}',
+    'IIm': '\\mathbf{I}',
+    'JJ': '\\mathbf{J}',
+    'KK': '\\mathbf{K}',
+    'LL': '\\mathbf{L}', 'll': '\\mathbf{l}',
+    'MM': '\\mathbf{M}', 'mm': '\\mathbf{m}',
+    'OO': '\\mathbf{O}',
+    'PP': '\\mathbf{P}', 'pp': '\\mathbf{p}',
+    'QQ': '\\mathbf{Q}', 'qq': '\\mathbf{q}',
+    'RR': '\\mathbf{R}', 'rr': '\\mathbf{r}',
+    'SS': '\\mathbf{S}',
+    'TT': '\\mathbf{T}',
+    'UU': '\\mathbf{U}', 'uu': '\\mathbf{u}',
+    'VV': '\\boldsymbol{V}', 'vv': '\\boldsymbol{v}',
+    'WW': '\\boldsymbol{W}', 'ww': '\\boldsymbol{w}',
+    'XX': '\\boldsymbol{X}', 'xx': '\\boldsymbol{x}',
+    'YY': '\\boldsymbol{Y}', 'yy': '\\boldsymbol{y}',
+    'ZZ': '\\mathbf{Z}', 'zz': '\\mathbf{z}',
 
-  constructor() {
-    this.loadMathJax();
-  }
+    // Special symbols
+    'zer': '\\boldsymbol{0}',
+
+    // Functions
+    'E': '\\mathrm{E}',
+    'EXy': '\\mathrm{E}_{\\mathbf{XY}}',
+    'N': '\\mathrm{N}',
+    'MVN': '\\mathrm{MVN}',
+    'chol': '\\mathrm{chol}',
+    'vec': '\\mathrm{vec}',
+    'var': '\\mathrm{Var}',
+    'cov': '\\mathrm{Cov}',
+    'diag': '\\mathrm{diag}',
+    'trace': '\\mathrm{trace}',
+    'dg': '\\mathrm{dg}',
+
+    // Alternative definitions
+    'Ab': '\\mathbf{D}', 'Aa': '\\mathbf{d}', 'Am': '\\boldsymbol{\\Pi}',
+    'Bb': '\\mathbf{J}', 'Ba': '\\mathbf{L}', 'Bm': '\\boldsymbol{\\Upsilon}',
+    'Ca': '\\Delta', 'Cb': '\\boldsymbol{\\Gamma}',
+    'Ub': '\\mathbf{C}', 'Ua': '\\mathbf{c}', 'Um': '\\boldsymbol{\\Upsilon}',
+    'Qb': '\\mathbf{G}', 'Qm': '\\mathbb{Q}',
+    'Rb': '\\mathbf{H}', 'Rm': '\\mathbb{R}',
+    'Zb': '\\mathbf{M}', 'Za': '\\mathbf{N}', 'Zm': '\\boldsymbol{\\Xi}',
+
+    // Tilde notation
+    'hatxt': '\\widetilde{\\mathbf{x}}_t',
+    'hatxtmt': '\\widetilde{\\mathbf{x}}_{t,t-1}',
+    'hatxone': '\\widetilde{\\mathbf{x}}_1',
+    'hatxzero': '\\widetilde{\\mathbf{x}}_0',
+    'hatxtm': '\\widetilde{\\mathbf{x}}_{t-1}',
+    'hatxQtm': '\\widetilde{\\mathbb{x}}_{t-1}',
+    'hatyt': '\\widetilde{\\mathbf{y}}_t',
+    'hatyone': '\\widetilde{\\mathbf{y}}_1',
+    'hatwt': '\\widetilde{\\mathbf{w}}_t',
+    'hatOt': '\\widetilde{\\mathbf{O}}_t',
+    'hatWt': '\\widehat{\\boldsymbol{W}}_t',
+    'hatWtp': '\\widehat{\\boldsymbol{W}}_{t+1}',
+    'hatwtp': '\\widehat{\\boldsymbol{w}}_{t+1}',
+    'hatVt': '\\widehat{\\boldsymbol{V}}_t',
+    'hatUtT': '\\widehat{\\boldsymbol{U}}_t^T',
+    'hatvt': '\\widehat{\\boldsymbol{v}}_t',
+    'hatPt': '\\widetilde{\\mathbf{P}}_t',
+    'hatUt': '\\widetilde{\\mathbf{U}}_t',
+    'hatPtm': '\\widetilde{\\mathbf{P}}_{t-1}',
+    'hatPQtm': '\\widetilde{\\mathbb{P}}_{t-1}',
+    'hatPttm': '\\widetilde{\\mathbf{P}}_{t,t-1}',
+    'hatPQttm': '\\widetilde{\\mathbb{P}}_{t,t-1}',
+    'hatPtmt': '\\widetilde{\\mathbf{P}}_{t-1,t}',
+    'hatVtT': '\\widetilde{\\boldsymbol{V}}_t^T',
+    'hatVtpT': '\\widetilde{\\boldsymbol{V}}_{t+1}^T',
+    'hatVtmT': '\\widetilde{\\boldsymbol{V}}_{t-1}^T',
+    'hatVtt': '\\widetilde{\\boldsymbol{V}}_t^t',
+    'hatStt': '\\widetilde{\\boldsymbol{S}}_t^t',
+    'hatStT': '\\widetilde{\\boldsymbol{S}}_t^T',
+    'hatVttm': '\\widetilde{\\boldsymbol{V}}_{t,t-1}',
+    'hatVttmT': '\\widetilde{\\boldsymbol{V}}_{t,t-1}^T',
+    'hatVttpT': '\\widetilde{\\boldsymbol{V}}_{t,t+1}^T',
+    'hatVtptT': '\\widetilde{\\boldsymbol{V}}_{t,t+1}^T',
+    'hatSttm': '\\widetilde{\\boldsymbol{S}}_{t,t-1}',
+    'hatVtmtT': '\\widetilde{\\boldsymbol{V}}_{t,t-1}^T',
+    'hatStmtT': '\\widetilde{\\boldsymbol{S}}_{t,t-1}^T',
+    'hatSttmT': '\\widetilde{\\boldsymbol{S}}_{t,t-1}^T',
+    'hatSttpT': '\\widetilde{\\boldsymbol{S}}_{t,t+1}^T',
+
+    // More complex notation
+    'hatxtT': '\\widetilde{\\boldsymbol{x}}_t^T',
+    'hatxtpT': '\\widetilde{\\boldsymbol{x}}_{t+1}^T',
+    'hatxtt': '\\widetilde{\\boldsymbol{x}}_t^{t}',
+    'hatxttm': '\\widetilde{\\boldsymbol{x}}_t^{t-1}',
+    'hatxtmT': '\\widetilde{\\boldsymbol{x}}_{t-1}^T',
+    'hatxtmt1': '\\widetilde{\\boldsymbol{x}}_{t-1}^{t-1}',
+    'hatxtpt1': '\\widetilde{\\boldsymbol{x}}_{t+1}^{t-1}',
+
+    // Check/overline notation
+    'checkWt': '\\overline{\\boldsymbol{W}}_t',
+    'checkWtp': '\\overline{\\boldsymbol{W}}_{t+1}',
+    'checkwt': '\\overline{\\boldsymbol{w}}_t',
+    'checkwtp': '\\overline{\\boldsymbol{w}}_{t+1}',
+    'checkvt': '\\overline{\\boldsymbol{v}}_t',
+    'checkvtp': '\\overline{\\boldsymbol{v}}_{t+1}',
+    'checkVtp': '\\overline{\\boldsymbol{V}}_{t+1}',
+    'checkVt': '\\overline{\\boldsymbol{V}}_t',
+
+    // Dot notation
+    'dotvt': '\\dot{\\boldsymbol{v}}_t',
+    'dotvtp': '\\dot{\\boldsymbol{v}}_{t+1}',
+    'dotVtp': '\\dot{\\boldsymbol{V}}_{t+1}',
+    'dotVt': '\\dot{\\boldsymbol{V}}_t',
+    'YYr': '\\dot{\\boldsymbol{Y}}',
+    'yyr': '\\dot{\\boldsymbol{y}}',
+    'aar': '\\dot{\\mathbf{a}}',
+    'ZZr': '\\dot{\\mathbf{Z}}',
+    'RRr': '\\dot{\\mathbf{R}}',
+
+    // Misc
+    'IR': '\\nabla',
+    'R': 'R',
+    'Ss': '\\mathbf{S}'
+  };
 
   /**
-   * Subscribe to an observable marking whether the MathJax service has been loaded.
-   * @returns An observable of the isLoaded$ subject.
+   *
+   * @param config
    */
-  get mathJaxLoaded$(): Observable<boolean> {
-    return this.isLoaded$.asObservable();
-  }
+  initialize(config?: MathJaxConfig): void {
+    if (this.isInitialized) return;
 
-  /**
-   * Configures MathJax for rendering Latex.
-   * @private
-   */
-  private async loadMathJax(): Promise<void> {
-    if (this.isLoading || window.MathJax) {
-      if (window.MathJax) {
-        this.isLoaded$.next(true);
+    try {
+      // Create adaptor
+      this.adaptor = liteAdaptor();
+      RegisterHTMLHandler(this.adaptor);
+
+      // Set current section if provided
+      if (config?.section) {
+        this.currentSection = config.section;
       }
+
+      // Use AllPackages or a minimal set for better compatibility
+      const packages: string[] = config?.packages || AllPackages;
+
+      // Create TeX input jax with correct configuration structure
+      this.inputJax = new TeX({
+        packages: packages,
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        processEscapes: true,
+        processEnvironments: true,
+        tags: config?.tags || 'ams',
+        tagSide: config?.tagSide || 'right',
+        tagIndent: config?.tagIndent || '0.8em',
+        macros: this.defaultMacros
+      });
+
+      // Configure SVG output
+      this.outputJax = new SVG({
+        fontCache: 'local',
+        internalSpeechTitles: true
+      });
+
+      // Create MathJax document processor
+      this.mathDocument = mathjax.document('', {
+        InputJax: this.inputJax,
+        OutputJax: this.outputJax,
+        // adaptor: this.adaptor
+      });
+
+      this.isInitialized = true;
+      console.log('MathJax service initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize MathJax:', error);
+      this.isInitialized = false;
+      throw error;
+    }
+  }
+
+  /**
+   *
+   * @param latex
+   * @param display
+   */
+  renderMath(latex: string, display: boolean = false): string {
+    if (!this.isInitialized) {
+      this.initialize();
+    }
+
+    if (!latex || latex.trim() === '') {
+      return '';
+    }
+
+    try {
+      // Wrap the LaTeX appropriately
+      const mathText = display ? `\\[${latex}\\]` : `\\(${latex}\\)`;
+
+      // Create a temporary document for this single expression
+      const tempDoc = mathjax.document(mathText, {
+        InputJax: this.inputJax,
+        OutputJax: this.outputJax,
+        // adaptor: this.adaptor
+      });
+
+      // Process the math
+      tempDoc.findMath().compile().getMetrics().typeset().updateDocument();
+
+      // Get the rendered result
+      const mathElements: MathList<any, any, any> = tempDoc.math;
+      const arr: MathItem<HTMLElement, Text, Document>[] = Array.from(
+        mathElements as Iterable<MathItem<HTMLElement, Text, Document>>
+      );
+
+      if (arr.length === 0) {
+        throw new Error('No math expressions found');
+      }
+
+      return this.adaptor.outerHTML(arr[0].typesetRoot);
+    } catch (error) {
+      console.error('MathJax rendering error:', error);
+      return `<span class="math-error">Error rendering: ${latex}</span>`;
+    }
+  }
+
+  /**
+   *
+   * @param htmlContent
+   */
+  renderDocument(htmlContent: string): string {
+    if (!this.isInitialized) {
+      this.initialize();
+    }
+
+    if (!htmlContent || htmlContent.trim() === '') {
+      return '';
+    }
+
+    try {
+      // Create a new document for the content with shared state
+      const doc = mathjax.document(htmlContent, {
+        InputJax: this.inputJax,
+        OutputJax: this.outputJax,
+        // adaptor: this.adaptor
+      });
+
+      // Process all math in the document
+      doc.findMath().compile().getMetrics().typeset().updateDocument();
+
+      // Return the processed HTML
+      return this.adaptor.outerHTML(this.adaptor.body(doc.document));
+    } catch (error) {
+      console.error('Document rendering error:', error);
+      return this.renderDocumentFallback(htmlContent);
+    }
+  }
+
+  /**
+   *
+   * @param htmlContent
+   */
+  private renderDocumentFallback(htmlContent: string): string {
+    console.log('Using fallback rendering method');
+    let processedContent = htmlContent;
+
+    try {
+      // Process display math first (to avoid conflicts with inline math)
+      processedContent = processedContent.replace(
+        /\$\$([^$]+)\$\$/g,
+        (match, latex) => {
+          try {
+            return this.renderMath(latex.trim(), true);
+          } catch {
+            return `<span class="math-error">Error: ${latex}</span>`;
+          }
+        }
+      );
+
+      processedContent = processedContent.replace(
+        /\\\[([^\]]+)\\\]/g,
+        (match, latex) => {
+          try {
+            return this.renderMath(latex.trim(), true);
+          } catch {
+            return `<span class="math-error">Error: ${latex}</span>`;
+          }
+        }
+      );
+
+      // Process inline math
+      processedContent = processedContent.replace(
+        /\$([^$\n]+)\$/g,
+        (match, latex) => {
+          try {
+            return this.renderMath(latex.trim(), false);
+          } catch {
+            return `<span class="math-error">Error: ${latex}</span>`;
+          }
+        }
+      );
+
+      processedContent = processedContent.replace(
+        /\\\(([^)]+)\\\)/g,
+        (match, latex) => {
+          try {
+            return this.renderMath(latex.trim(), false);
+          } catch {
+            return `<span class="math-error">Error: ${latex}</span>`;
+          }
+        }
+      );
+
+      return processedContent;
+    } catch (error) {
+      console.error('Fallback rendering failed:', error);
+      return htmlContent;
+    }
+  }
+
+  /**
+   *
+   */
+  getStyles(): string {
+    if (!this.isInitialized) {
+      this.initialize();
+    }
+
+    try {
+      if (this.outputJax && typeof this.outputJax.styleSheet === 'function') {
+        const styles = this.outputJax.styleSheet(this.adaptor);
+        return styles || this.getDefaultStyles();
+      }
+    } catch (error) {
+      console.warn('Failed to get MathJax styles:', error);
+    }
+
+    return this.getDefaultStyles();
+  }
+
+  /**
+   *
+   */
+  private getDefaultStyles(): string {
+    return `
+      .MathJax {
+        outline: 0;
+        display: inline-block;
+      }
+
+      .MathJax[display="true"] {
+        display: block;
+        text-align: center;
+        margin: 1em 0;
+      }
+
+      .MathJax svg {
+        display: inline-block;
+        vertical-align: middle;
+      }
+
+      .math-error {
+        background: #ffe6e6;
+        color: #cc0000;
+        padding: 2px 4px;
+        border-radius: 2px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid #ffcccc;
+      }
+
+      /* Equation numbering styles */
+      .MathJax .mjx-tag {
+        margin-right: 0.8em;
+        font-weight: normal;
+      }
+
+      .math-content p {
+        margin: 1em 0;
+      }
+
+      .math-content .MathJax {
+        margin: 0 0.1em;
+      }
+
+      .mjx-display {
+        display: block;
+        text-align: center;
+        margin: 1em 0;
+        position: relative;
+      }
+    `;
+  }
+
+  /**
+   *
+   * @param section
+   */
+  setSection(section: number): void {
+    this.currentSection = section;
+    console.log(`Set current section to: ${section}`);
+  }
+
+  /**
+   *
+   */
+  nextSection(): void {
+    this.currentSection++;
+    console.log(`Advanced to section: ${this.currentSection}`);
+  }
+
+  /**
+   *
+   */
+  getCurrentSection(): number {
+    return this.currentSection;
+  }
+
+  /**
+   *
+   */
+  isReady(): boolean {
+    return this.isInitialized;
+  }
+
+  /**
+   *
+   * @param macros
+   */
+  addMacros(macros: { [key: string]: string }): void {
+    if (!this.isInitialized) {
+      console.warn('MathJax not initialized. Call initialize() first.');
       return;
     }
 
-    // Mark that we are now loading MathJax
-    this.isLoading = true;
-
     try {
-      // Configure MathJax
-      window.MathJax = {
-        tex: {
-          inlineMath: [['$', '$'], ['\\(', '\\)']],
-          displayMath: [['$$', '$$'], ['\\[', '\\]']],
-          packages: ['base', 'ams', 'newcommand', 'configmacros', 'action'],
-          tags: 'ams',
-          tagSide: 'right',
-          tagIndent: '0.8em',
-          processEscapes: true,
-          processEnvironments: true,
-          macros: {
-            // We can add more macros here
-          }
-        },
-        svg: {
-          fontCache: 'global'
-        },
-        startup: {
-          ready: () => {
-            window.MathJax.startup.defaultReady();
-            console.log('MathJax loaded successfully');
-            // Emit a behavior subject that MathJax is now successfully loaded
-            this.isLoaded$.next(true);
-          }
-        }
-      };
-
-      // Load MathJax script
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js';
-      script.async = true;
-      script.onload = () => {
-        console.log('MathJax script loaded');
-      };
-      script.onerror = (error) => {
-        console.error('Failed to load MathJax script:', error);
-        this.isLoading = false;
-      };
-
-      document.head.appendChild(script);
-
-    } catch (error) {
-      console.error('Failed to initialize MathJax:', error);
-      this.isLoading = false;
-    }
-  }
-
-  /**
-   * Given an HTML Element, this service will use MathJax v3 to render any Latex existing in the element.
-   * @param element - HTML Element in question.
-   */
-  async renderMath(element: HTMLElement): Promise<void> {
-
-    // If MathJax is still loading, stall.
-    if (!this.isLoaded$.value) {
-      await firstValueFrom(
-        this.isLoaded$.pipe(
-          filter(loaded => loaded == true), // filter out emissions that are false
-          take(1)                   // we only care about the first `true` emission
-        )
-      );
-    }
-
-    try {
-
-      // Clear any existing MathJax rendering state so that we do not duplicate formulas.
-      if (window.MathJax && window.MathJax.typesetClear) {
-        window.MathJax.typesetClear([element]);
-      }
-
-      // Perform the MathJax rendering call.
-      if (window.MathJax && window.MathJax.typesetPromise) {
-        await window.MathJax.typesetPromise([element]);
-        console.log('Math rendered successfully');
-      }
-    } catch (error) {
-      console.error('MathJax rendering error:', error);
-    }
-  }
-
-  /**
-   *
-   * @param name
-   * @param componentType
-   */
-  registerComponent(name: string, componentType: Type<any>): void {
-    this.registeredComponents.set(name, componentType);
-    console.log(`Component registered: ${name}`);
-  }
-
-  /**
-   * Dynamically creates a pre-registered component into a host HTML Element.
-   * @param componentName - Name of the pre-registered component that will get generated.
-   * @param hostElement - The host HTML Element that will hold the dynamically created component.
-   * @param props - When given, additional properties to be set onto the newly generated component.
-   */
-  createDynamicComponent<T = any>(
-    componentName: string,
-    hostElement: HTMLElement,
-    props?: any
-  ): ComponentRef<T> | null {
-
-    // Get the type of the registered component
-    const componentType = this.registeredComponents.get(componentName);
-
-    // Throw an error if trying to create a component that has not yet been registered.
-    if (!componentType) {
-      console.error(`Component ${componentName} not registered`);
-      return null;
-    }
-
-    try {
-      // Create a component using the given HTML Element and get a reference to this component.
-      const componentRef = createComponent(componentType, {
-        environmentInjector: this.injector,
-        hostElement
-      }) as ComponentRef<T>;
-
-      // Set the properties of the component if provided.
-      if (props && componentRef.instance) {
-        for (const [k, v] of Object.entries(props ?? {})) {
-          componentRef.setInput?.(k as any, v); // triggers ngOnChanges properly
-        }
-      }
-
-      // Register the component's view into the root of the application reference so that it may participate in
-      // the global change detection.
-      this.appRef.attachView(componentRef.hostView);
-      // Renders the template into the host element, runs the component's lifecycle hooks (e.g. ngOnInit), and processes
-      // bindings.
-      componentRef.changeDetectorRef.detectChanges();
-
-      // Store reference for cleanup.
-      const instanceId = `${componentName}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      this.componentInstances.set(instanceId, componentRef);
-      hostElement.setAttribute('data-component-id', instanceId);
-
-      console.log(`Dynamic component created: ${componentName}`, componentRef.instance);
-      return componentRef;
-    } catch (error) {
-      console.error(`Error creating component ${componentName}:`, error);
-      return null;
-    }
-  }
-
-  /**
-   *
-   */
-  destroyAllComponents(): void {
-    this.componentInstances.forEach((componentRef, id) => {
-      try {
-        // Detach the view of the component from the application and destroy it.
-        this.appRef.detachView(componentRef.hostView);
-        componentRef.destroy();
-      } catch (error) {
-        console.error('Error destroying component:', error);
-      }
-    });
-    // Clear the component instance map.
-    this.componentInstances.clear();
-  }
-
-  /**
-   * This method turns placeholder tags (<ng-component>) into real Angular components by:
-   * 1. Finding all <ng-component> tags inside a given element.
-   * 2. Extracting the name and props.
-   * 3. Replacing the tag with a styled <div>.
-   * 4. Dynamically creating the Angular component inside that div.
-   * 5. Wiring up props, logging success/failure, and leaving behind a fallback error message if creation fails.
-   *
-   * @param element
-   */
-  processAngularComponents(element: HTMLElement): void {
-    console.log('Processing Angular components in element:', element);
-
-    // Process <ng-component> tags
-    const componentTags = element.querySelectorAll('ng-component');
-    console.log('Found component tags:', componentTags.length);
-
-    componentTags.forEach((tag: Element, index: number) => {
-      const componentName = tag.getAttribute('name');
-      const propsStr = tag.getAttribute('props');
-
-      console.log(`Processing component ${index + 1}:`, { componentName, propsStr });
-
-      if (componentName) {
-        try {
-          // Get the properties of the element into a map.
-          const props = propsStr ? JSON.parse(propsStr) : {};
-          console.log('Parsed props:', props);
-
-          // Create a container div
-          const container = document.createElement('div');
-          container.className = 'dynamic-component-container';
-          container.style.margin = '16px 0';
-          container.style.padding = '8px';
-          container.style.border = '1px dashed #ccc';
-          container.style.borderRadius = '4px';
-
-          // Replace the tag with the container
-          tag.parentNode?.replaceChild(container, tag);
-          console.log('Replaced tag with container');
-
-          // Create the component
-          const componentRef = this.createDynamicComponent(componentName, container, props);
-
-          if (componentRef) {
-            console.log('✅ Component created successfully:', componentName);
-          } else {
-            console.error('❌ Failed to create component:', componentName);
-            container.innerHTML = `<div style="color: red; padding: 8px;">Error: Component "${componentName}" could not be created</div>`;
-          }
-
-        } catch (error) {
-          console.error('Error processing component tag:', error);
-          tag.innerHTML = `<div style="color: red; padding: 8px;">Error: ${componentName} - ${error}</div>`;
-        }
+      const config = this.inputJax.parseOptions;
+      if (config && config.options && config.options.macros) {
+        Object.assign(config.options.macros, macros);
+        console.log('Added macros:', Object.keys(macros));
       } else {
-        console.warn('Component tag missing name attribute:', tag);
+        console.warn('Unable to access macros configuration');
       }
-    });
-
-    // Also check for any remaining ng-component tags that might not have been processed
-    const remainingTags = element.querySelectorAll('ng-component');
-    if (remainingTags.length > 0) {
-      console.warn('Some ng-component tags were not processed:', remainingTags);
+    } catch (error) {
+      console.error('Error adding macros:', error);
     }
+  }
+
+  /**
+   *
+   */
+  testRender(): boolean {
+    try {
+      const testResult = this.renderMath('x^2 + y^2 = z^2', false);
+      return testResult.includes('svg') || testResult.includes('MathJax');
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   *
+   */
+  reset(): void {
+    this.isInitialized = false;
+    this.adaptor = null;
+    this.inputJax = null;
+    this.outputJax = null;
+    this.mathDocument = null;
+    this.currentSection = 1;
+  }
+
+  /**
+   *
+   */
+  getConfigInfo(): any {
+    return {
+      isInitialized: this.isInitialized,
+      hasAdaptor: !!this.adaptor,
+      hasInputJax: !!this.inputJax,
+      hasOutputJax: !!this.outputJax,
+      hasMathDocument: !!this.mathDocument,
+      currentSection: this.currentSection,
+      macroCount: this.inputJax?.parseOptions?.options?.macros ?
+        Object.keys(this.inputJax.parseOptions.options.macros).length : 0
+    };
   }
 }

@@ -1,0 +1,35 @@
+<div class="math-document-container">
+  <!-- Inject MathJax styles -->
+  <style [innerHTML]="mathStyles"></style>
+
+  <div *ngIf="loading" class="loading">
+    <div class="spinner"></div>
+    Loading document...
+  </div>
+
+  <div *ngIf="error" class="error">
+    <strong>Error:</strong> {{ error }}
+    <button (click)="retry()" class="retry-btn">Retry</button>
+    <button (click)="toggleDebugInfo()" class="debug-btn">
+      {{ showDebugInfo ? 'Hide' : 'Show' }} Debug Info
+    </button>
+
+    <div *ngIf="showDebugInfo" class="debug-info">
+      <h4>MathJax Configuration:</h4>
+      <pre>{{ debugInfo | json }}</pre>
+    </div>
+  </div>
+
+  <div
+    class="math-content"
+    [innerHTML]="renderedContent"
+    *ngIf="!loading && !error">
+  </div>
+
+  <div *ngIf="!loading && !error && showConfigInfo" class="config-info">
+    <details>
+      <summary>MathJax Configuration</summary>
+      <pre>{{ mathJaxConfigInfo | json }}</pre>
+    </details>
+  </div>
+</div>

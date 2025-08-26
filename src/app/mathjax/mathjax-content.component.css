@@ -1,0 +1,410 @@
+.mathjax-wrapper {
+  position: relative;
+  width: 100%;
+  margin: 16px 0;
+  /*background: var(--wrapper-bg, transparent);*/
+  /*border-radius: var(--wrapper-radius, 8px);*/
+  transition: all 0.3s ease;
+}
+
+/* Control Panel */
+.mathjax-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.controls-left, .controls-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  min-width: fit-content;
+}
+
+.refresh-btn {
+  background: #007bff;
+  color: white;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.refresh-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.toggle-btn {
+  background: #28a745;
+  color: white;
+}
+
+.toggle-btn:hover {
+  background: #1e7e34;
+  transform: translateY(-1px);
+}
+
+.btn-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.status-indicator.ready {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-indicator.processing {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.component-counter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.counter-value {
+  background: #007bff;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+/* Main Container */
+.mathjax-container {
+  min-height: 60px;
+  line-height: 1.7;
+  font-size: 16px;
+  padding: 24px;
+  /*background: var(--container-bg, white);*/
+  border-radius: 8px;
+  /*border: 1px solid var(--container-border, #e9ecef);*/
+  position: relative;
+  transition: all 0.3s ease;
+  overflow-x: auto;
+}
+
+.mathjax-container.processing {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.mathjax-container.has-components {
+  border-left: 4px solid #007bff;
+}
+
+.mathjax-container.components-disabled {
+  border-left: 4px solid #dc3545;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+  z-index: 100;
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  text-align: left;
+}
+
+.loading-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 4px;
+}
+
+.loading-subtitle {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+/* Error Overlay */
+.error-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+  z-index: 100;
+}
+
+.error-content {
+  text-align: center;
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid #f8d7da;
+  max-width: 400px;
+}
+
+.error-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.error-message {
+  color: #721c24;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.error-retry-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.3s ease;
+}
+
+.error-retry-btn:hover {
+  background: #c82333;
+}
+
+/* Animations */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Math Content Styling */
+.mathjax-container :global(mjx-container) {
+  margin: 12px 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.mathjax-container :global(mjx-container[display="true"]) {
+  margin: 20px 0;
+  text-align: center;
+}
+
+/* Dynamic Component Styling */
+.mathjax-container :global(.dynamic-component-container) {
+  display: block;
+  margin: 20px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  /*background: var(--component-bg, #f8f9fa);*/
+  /*border: 1px solid var(--component-border, #dee2e6);*/
+}
+
+/* Content Typography */
+.mathjax-container :global(h1) {
+  color: #212529;
+  border-bottom: 3px solid #007bff;
+  padding-bottom: 12px;
+  margin: 24px 0 16px 0;
+  font-size: 1.8rem;
+}
+
+.mathjax-container :global(h2) {
+  color: #495057;
+  border-bottom: 2px solid #6c757d;
+  padding-bottom: 8px;
+  margin: 20px 0 12px 0;
+  font-size: 1.4rem;
+}
+
+.mathjax-container :global(h3) {
+  color: #6c757d;
+  margin: 16px 0 8px 0;
+  font-size: 1.2rem;
+}
+
+.mathjax-container :global(p) {
+  margin: 12px 0;
+  line-height: 1.7;
+}
+
+.mathjax-container :global(ol),
+.mathjax-container :global(ul) {
+  padding-left: 28px;
+  margin: 12px 0;
+}
+
+.mathjax-container :global(li) {
+  margin: 6px 0;
+  line-height: 1.6;
+}
+
+.mathjax-container :global(strong) {
+  color: #495057;
+  font-weight: 600;
+}
+
+.mathjax-container :global(em) {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.mathjax-container :global(code) {
+  background: #f8f9fa;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.9em;
+  border: 1px solid #e9ecef;
+}
+
+/* Theme Support */
+.mathjax-wrapper[data-theme*="dark"] {
+  --wrapper-bg: #1a1a1a;
+  --container-bg: #2d2d2d;
+  --container-border: #404040;
+  --component-bg: #383838;
+  --component-border: #505050;
+}
+
+.mathjax-wrapper[data-theme*="dark"] .mathjax-controls {
+  background: linear-gradient(135deg, #2d2d2d 0%, #3d3d3d 100%);
+  border-color: #505050;
+  color: #e9ecef;
+}
+
+.mathjax-wrapper[data-theme*="dark"] .mathjax-container :global(h1),
+.mathjax-wrapper[data-theme*="dark"] .mathjax-container :global(h2),
+.mathjax-wrapper[data-theme*="dark"] .mathjax-container :global(h3) {
+  color: #e9ecef;
+}
+
+.mathjax-wrapper[data-theme*="dark"] .mathjax-container :global(p),
+.mathjax-wrapper[data-theme*="dark"] .mathjax-container :global(li) {
+  color: #ced4da;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .mathjax-container {
+    padding: 16px;
+    font-size: 15px;
+  }
+
+  .mathjax-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .controls-left, .controls-right {
+    justify-content: center;
+  }
+
+  .control-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .loading-content {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+
+  .mathjax-container :global(mjx-container) {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mathjax-wrapper {
+    margin: 12px 0;
+  }
+
+  .mathjax-container {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .mathjax-controls {
+    padding: 10px;
+  }
+}

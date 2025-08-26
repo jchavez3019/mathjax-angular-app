@@ -1,0 +1,70 @@
+<div class="mathjax-wrapper" [ngClass]="containerClass" [attr.data-theme]="containerClass">
+  <!-- Controls Section -->
+  <div class="mathjax-controls" *ngIf="showControls">
+    <div class="controls-left">
+      <button
+        (click)="refresh()"
+        class="control-btn refresh-btn"
+        [disabled]="isProcessing()"
+        [attr.aria-label]="isProcessing() ? 'Processing content' : 'Refresh content'">
+        <span class="btn-icon">{{ isProcessing() ? '⏳' : '🔄' }}</span>
+        {{ isProcessing() ? 'Processing...' : 'Refresh' }}
+      </button>
+
+      <button
+        (click)="toggleComponentsEnabled()"
+        class="control-btn toggle-btn"
+        *ngIf="enableDynamicComponents"
+        [attr.aria-label]="componentsEnabled ? 'Disable dynamic components' : 'Enable dynamic components'">
+        <span class="btn-icon">{{ componentsEnabled ? '⚛️' : '🔒' }}</span>
+        {{ componentsEnabled ? 'Components On' : 'Components Off' }}
+      </button>
+    </div>
+
+    <div class="controls-right">
+      <div class="status-indicator" [ngClass]="statusClass()">
+        <span class="status-icon">{{ statusIcon() }}</span>
+        <span class="status-text">{{ statusText() }}</span>
+      </div>
+
+      <div class="component-counter" *ngIf="enableDynamicComponents">
+        <span class="counter-label">Components:</span>
+        <span class="counter-value">{{ componentCount() }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Container -->
+  <div
+    #mathContainer
+    class="mathjax-container"
+    [ngClass]="{
+          'processing': isProcessing(),
+          'has-components': componentCount() > 0,
+          'components-disabled': !componentsEnabled
+        }"
+    [attr.data-processing]="isProcessing()"
+  ></div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" *ngIf="isProcessing()">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">
+        <div class="loading-title">{{ loadingMessage() }}</div>
+        <div class="loading-subtitle">{{ loadingDetails() }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Display -->
+  <div class="error-overlay" *ngIf="hasError()">
+    <div class="error-content">
+      <div class="error-icon">⚠️</div>
+      <div class="error-message">{{ errorMessage() }}</div>
+      <button (click)="clearError(); refresh()" class="error-retry-btn">
+        Try Again
+      </button>
+    </div>
+  </div>
+</div>

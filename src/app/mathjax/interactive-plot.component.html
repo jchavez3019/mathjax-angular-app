@@ -1,0 +1,136 @@
+<div class="interactive-plot-container" [attr.data-title]="title">
+  <!-- Header -->
+  <div class="plot-header">
+    <div class="plot-title-section">
+      <h4 class="plot-title">{{ title }}</h4>
+      <p class="plot-description" *ngIf="description">{{ description }}</p>
+    </div>
+    <div class="plot-status">
+          <span class="status-badge" [ngClass]="statusClass()">
+            {{ status() }}
+          </span>
+    </div>
+  </div>
+
+  <!-- Controls Panel -->
+  <div class="plot-controls" *ngIf="showControls">
+    <div class="control-group">
+      <label class="control-label">Function Type:</label>
+      <select [(ngModel)]="plotType" (ngModelChange)="onParameterChange()" class="control-select">
+        <option value="sine">Sine Wave</option>
+        <option value="cosine">Cosine Wave</option>
+        <option value="tangent">Tangent</option>
+        <option value="quadratic">Quadratic</option>
+        <option value="cubic">Cubic</option>
+      </select>
+    </div>
+
+    <div class="control-group" *ngIf="isWaveFunction()">
+      <label class="control-label">Amplitude: {{ amplitude }}</label>
+      <input
+        type="range"
+        [(ngModel)]="amplitude"
+        (ngModelChange)="onParameterChange()"
+        min="0.1"
+        max="3"
+        step="0.1"
+        class="control-slider">
+    </div>
+
+    <div class="control-group" *ngIf="isWaveFunction()">
+      <label class="control-label">Frequency: {{ frequency }}</label>
+      <input
+        type="range"
+        [(ngModel)]="frequency"
+        (ngModelChange)="onParameterChange()"
+        min="0.5"
+        max="5"
+        step="0.1"
+        class="control-slider">
+    </div>
+
+    <div class="control-group" *ngIf="isPolynomial()">
+      <label class="control-label">Coefficient A: {{ coeffA }}</label>
+      <input
+        type="range"
+        [(ngModel)]="coeffA"
+        (ngModelChange)="onParameterChange()"
+        min="-2"
+        max="2"
+        step="0.1"
+        class="control-slider">
+    </div>
+
+    <div class="control-group" *ngIf="isPolynomial()">
+      <label class="control-label">Coefficient B: {{ coeffB }}</label>
+      <input
+        type="range"
+        [(ngModel)]="coeffB"
+        (ngModelChange)="onParameterChange()"
+        min="-5"
+        max="5"
+        step="0.1"
+        class="control-slider">
+    </div>
+
+    <div class="control-actions">
+      <button (click)="redraw()" class="control-btn primary">
+        🔄 Redraw
+      </button>
+      <button (click)="resetParameters()" class="control-btn secondary">
+        ↻ Reset
+      </button>
+      <button (click)="randomize()" class="control-btn accent">
+        🎲 Random
+      </button>
+    </div>
+  </div>
+
+  <!-- Canvas Container -->
+  <div class="canvas-container">
+    <canvas
+      #plotCanvas
+      [width]="canvasWidth"
+      [height]="canvasHeight"
+      class="plot-canvas"
+      (mousemove)="onMouseMove($event)"
+      (mouseleave)="clearCrosshair()"
+    ></canvas>
+
+    <!-- Crosshair Info -->
+    <div class="crosshair-info" *ngIf="showCrosshair" [style.left.px]="mouseX" [style.top.px]="mouseY">
+      <div class="coord-display">
+        x: {{ formatNumber(currentX) }}<br>
+        y: {{ formatNumber(currentY) }}
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="canvas-loading" *ngIf="isLoading()">
+      <div class="loading-spinner"></div>
+      <span>Generating plot...</span>
+    </div>
+  </div>
+
+  <!-- Function Display -->
+  <div class="function-display" *ngIf="showFunction">
+    <div class="function-label">Current Function:</div>
+    <div class="function-equation" [innerHTML]="currentFunction()"></div>
+  </div>
+
+  <!-- Plot Info -->
+  <div class="plot-info">
+    <div class="info-item">
+      <span class="info-label">Points:</span>
+      <span class="info-value">{{ pointCount() }}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Range:</span>
+      <span class="info-value">[{{ formatNumber(xMin) }}, {{ formatNumber(xMax) }}]</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Last Updated:</span>
+      <span class="info-value">{{ lastUpdated() }}</span>
+    </div>
+  </div>
+</div>

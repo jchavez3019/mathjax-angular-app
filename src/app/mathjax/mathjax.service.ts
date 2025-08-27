@@ -192,11 +192,6 @@ export class MathJaxService {
       this.adaptor = liteAdaptor();
       RegisterHTMLHandler(this.adaptor);
 
-      // Set current section if provided
-      if (config?.section) {
-        this.currentSection = config.section;
-      }
-
       // Use AllPackages or a minimal set for better compatibility
       const packages: string[] = config?.packages || AllPackages;
 
@@ -223,15 +218,51 @@ export class MathJaxService {
       this.mathDocument = mathjax.document('', {
         InputJax: this.inputJax,
         OutputJax: this.outputJax,
-        // adaptor: this.adaptor
       });
 
       this.isInitialized = true;
       console.log('MathJax service initialized successfully');
+      console.log("Initialization configuration settings.", {
+        inputJax: this.inputJax,
+        outputJax: this.outputJax,
+        allPackages: AllPackages,
+        ...this.getConfigInfo()
+      });
     } catch (error) {
       console.error('Failed to initialize MathJax:', error);
       this.isInitialized = false;
       throw error;
+    }
+  }
+
+  /**
+   *
+   * @param htmlContent
+   */
+  renderDocument(htmlContent: string): string {
+    if (!this.isInitialized) {
+      this.initialize();
+    }
+
+    if (!htmlContent || htmlContent.trim() === '') {
+      return '';
+    }
+
+    try {
+      // Create a new document for the content with shared state
+      const doc = mathjax.document(htmlContent, {
+        InputJax: this.inputJax,
+        OutputJax: this.outputJax,
+      });
+
+      // Process all math in the document
+      doc.findMath().compile().getMetrics().typeset().updateDocument();
+
+      // Return the processed HTML
+      return this.adaptor.outerHTML(this.adaptor.body(doc.document));
+    } catch (error) {
+      console.error('Document rendering error:', error);
+      return this.renderDocumentFallback(htmlContent);
     }
   }
 
@@ -277,38 +308,6 @@ export class MathJaxService {
     } catch (error) {
       console.error('MathJax rendering error:', error);
       return `<span class="math-error">Error rendering: ${latex}</span>`;
-    }
-  }
-
-  /**
-   *
-   * @param htmlContent
-   */
-  renderDocument(htmlContent: string): string {
-    if (!this.isInitialized) {
-      this.initialize();
-    }
-
-    if (!htmlContent || htmlContent.trim() === '') {
-      return '';
-    }
-
-    try {
-      // Create a new document for the content with shared state
-      const doc = mathjax.document(htmlContent, {
-        InputJax: this.inputJax,
-        OutputJax: this.outputJax,
-        // adaptor: this.adaptor
-      });
-
-      // Process all math in the document
-      doc.findMath().compile().getMetrics().typeset().updateDocument();
-
-      // Return the processed HTML
-      return this.adaptor.outerHTML(this.adaptor.body(doc.document));
-    } catch (error) {
-      console.error('Document rendering error:', error);
-      return this.renderDocumentFallback(htmlContent);
     }
   }
 
@@ -385,6 +384,10 @@ export class MathJaxService {
     try {
       if (this.outputJax && typeof this.outputJax.styleSheet === 'function') {
         const styles = this.outputJax.styleSheet(this.adaptor);
+        console.log("Retrieved styles from MathJax", {
+          styles: styles,
+          defaultStyles: this.getDefaultStyles()
+        })
         return styles || this.getDefaultStyles();
       }
     } catch (error) {
@@ -450,30 +453,6 @@ export class MathJaxService {
 
   /**
    *
-   * @param section
-   */
-  setSection(section: number): void {
-    this.currentSection = section;
-    console.log(`Set current section to: ${section}`);
-  }
-
-  /**
-   *
-   */
-  nextSection(): void {
-    this.currentSection++;
-    console.log(`Advanced to section: ${this.currentSection}`);
-  }
-
-  /**
-   *
-   */
-  getCurrentSection(): number {
-    return this.currentSection;
-  }
-
-  /**
-   *
    */
   isReady(): boolean {
     return this.isInitialized;
@@ -499,18 +478,6 @@ export class MathJaxService {
       }
     } catch (error) {
       console.error('Error adding macros:', error);
-    }
-  }
-
-  /**
-   *
-   */
-  testRender(): boolean {
-    try {
-      const testResult = this.renderMath('x^2 + y^2 = z^2', false);
-      return testResult.includes('svg') || testResult.includes('MathJax');
-    } catch {
-      return false;
     }
   }
 

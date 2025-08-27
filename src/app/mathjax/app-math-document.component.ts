@@ -1,5 +1,5 @@
 // app-math-document.component.ts
-import { Component, Input, OnInit } from '@angular/core';
+import {Component, inject, Input, OnInit} from '@angular/core';
 import { MathJaxConfig, MathJaxService } from './mathjax.service';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {DocumentMetadata, DocumentService} from './document.service';
@@ -17,8 +17,15 @@ export class MathDocumentComponent implements OnInit {
   @Input({ required: true }) documentPath!: string;
   // Additional configurations to use with MathJax on this document.
   @Input() mathConfig?: MathJaxConfig;
+  // If true, loads the content as soon as the component is initialized.
   @Input() autoLoad = true;
-  @Input() showConfigInfo = false;
+  // If true, displays the MathJax configuration.
+  @Input() showConfigInfo = true;
+
+  // Inject services.
+  private readonly mathJaxService = inject(MathJaxService);
+  private readonly documentService = inject(DocumentService);
+  private readonly sanitizer = inject(DomSanitizer);
 
   loading = false;
   error: string | null = null;
@@ -28,17 +35,11 @@ export class MathDocumentComponent implements OnInit {
   debugInfo: any = {};
   mathJaxConfigInfo: any = {};
 
-  constructor(
-    private mathJaxService: MathJaxService,
-    private documentService: DocumentService,
-    private sanitizer: DomSanitizer
-  ) {}
-
   /**
    *
    */
   ngOnInit(): void {
-    if (this.autoLoad && this.documentPath) {
+    if (this.autoLoad) {
       this.loadDocument();
     }
   }
@@ -74,9 +75,9 @@ export class MathDocumentComponent implements OnInit {
       this.mathJaxService.initialize(finalConfig);
 
       // Set section if specified in config
-      if (finalConfig.section) {
-        this.mathJaxService.setSection(finalConfig.section);
-      }
+      // if (finalConfig.section) {
+      //   this.mathJaxService.setSection(finalConfig.section);
+      // }
 
       // Get configuration info for debugging
       this.mathJaxConfigInfo = this.mathJaxService.getConfigInfo();
@@ -84,11 +85,6 @@ export class MathDocumentComponent implements OnInit {
       // Get and inject styles
       const styles = this.mathJaxService.getStyles();
       this.mathStyles = this.sanitizer.bypassSecurityTrustHtml(styles);
-
-      // Test if MathJax is working
-      if (!this.mathJaxService.testRender()) {
-        throw new Error('MathJax failed initialization test');
-      }
 
       // Render the document
       console.log('Rendering document content...');
@@ -121,7 +117,10 @@ export class MathDocumentComponent implements OnInit {
     this.showDebugInfo = !this.showDebugInfo;
   }
 
-  // Method to render individual math expressions
+  /**
+   * Method to render individual math expressions.
+   * @param latex
+   */
   renderInlineMath(latex: string): SafeHtml {
     try {
       const html = this.mathJaxService.renderMath(latex, false);
@@ -146,15 +145,4 @@ export class MathDocumentComponent implements OnInit {
     }
   }
 
-  // Method to manually set section number
-  setSection(section: number): void {
-    this.mathJaxService.setSection(section);
-    this.mathJaxConfigInfo = this.mathJaxService.getConfigInfo();
-  }
-
-  // Method to move to next section
-  nextSection(): void {
-    this.mathJaxService.nextSection();
-    this.mathJaxConfigInfo = this.mathJaxService.getConfigInfo();
-  }
 }

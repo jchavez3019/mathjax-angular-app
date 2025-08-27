@@ -2,11 +2,13 @@
   <!-- Inject MathJax styles -->
   <style [innerHTML]="mathStyles"></style>
 
+  <!-- Loading state to display until the math content is rendered. -->
   <div *ngIf="loading" class="loading">
     <div class="spinner"></div>
     Loading document...
   </div>
 
+  <!-- Error state to display when an error occurs during rendering. -->
   <div *ngIf="error" class="error">
     <strong>Error:</strong> {{ error }}
     <button (click)="retry()" class="retry-btn">Retry</button>
@@ -20,12 +22,14 @@
     </div>
   </div>
 
+  <!-- Math content to display once rendered successfully. -->
   <div
     class="math-content"
     [innerHTML]="renderedContent"
     *ngIf="!loading && !error">
   </div>
 
+  <!-- If enabled, shows the MathJax configuration used for this document. -->
   <div *ngIf="!loading && !error && showConfigInfo" class="config-info">
     <details>
       <summary>MathJax Configuration</summary>

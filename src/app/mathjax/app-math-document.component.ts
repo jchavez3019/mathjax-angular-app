@@ -1,5 +1,5 @@
 // app-math-document.component.ts
-import {Component, inject, Input, OnInit} from '@angular/core';
+import {Component, inject, Input, OnInit, Renderer2} from '@angular/core';
 import { MathJaxConfig, MathJaxService } from './mathjax.service';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {DocumentMetadata, DocumentService} from './document.service';
@@ -26,6 +26,7 @@ export class MathDocumentComponent implements OnInit {
   private readonly mathJaxService = inject(MathJaxService);
   private readonly documentService = inject(DocumentService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly renderer = inject(Renderer2);
 
   loading = false;
   error: string | null = null;
@@ -72,7 +73,7 @@ export class MathDocumentComponent implements OnInit {
       console.log('Final MathJax config:', finalConfig);
 
       // Initialize MathJax with final config
-      this.mathJaxService.initialize(finalConfig);
+      // this.mathJaxService.initialize(finalConfig);
 
       // Set section if specified in config
       // if (finalConfig.section) {
@@ -88,8 +89,12 @@ export class MathDocumentComponent implements OnInit {
 
       // Render the document
       console.log('Rendering document content...');
-      const renderedHtml = this.mathJaxService.renderDocument(content);
+      const { math: renderedHtml, mathCss: cssString } = await this.mathJaxService.renderDocument(content);
       this.renderedContent = this.sanitizer.bypassSecurityTrustHtml(renderedHtml);
+
+      const styleEl = this.renderer.createElement('style');
+      styleEl.textContent = cssString;
+      this.renderer.appendChild(document.head, styleEl);
 
       console.log('Document rendered successfully');
 
@@ -121,9 +126,9 @@ export class MathDocumentComponent implements OnInit {
    * Method to render individual math expressions.
    * @param latex
    */
-  renderInlineMath(latex: string): SafeHtml {
+  async renderInlineMath(latex: string): Promise<SafeHtml> {
     try {
-      const html = this.mathJaxService.renderMath(latex, false);
+      const html = await this.mathJaxService.renderMath(latex, false);
       return this.sanitizer.bypassSecurityTrustHtml(html);
     } catch (error) {
       console.error('Error rendering inline math:', error);
@@ -133,9 +138,9 @@ export class MathDocumentComponent implements OnInit {
     }
   }
 
-  renderDisplayMath(latex: string): SafeHtml {
+  async renderDisplayMath(latex: string): Promise<SafeHtml> {
     try {
-      const html = this.mathJaxService.renderMath(latex, true);
+      const html = await this.mathJaxService.renderMath(latex, true);
       return this.sanitizer.bypassSecurityTrustHtml(html);
     } catch (error) {
       console.error('Error rendering display math:', error);

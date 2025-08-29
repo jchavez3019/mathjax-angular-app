@@ -1,13 +1,20 @@
-// mathjax.service.ts - Corrected for mathjax-full
+// mathjax.service.ts
 import { Injectable } from '@angular/core';
-import { mathjax } from 'mathjax-full/js/mathjax';
-import { TeX } from 'mathjax-full/js/input/tex';
-import { SVG } from 'mathjax-full/js/output/svg';
-import { liteAdaptor } from 'mathjax-full/js/adaptors/liteAdaptor';
-import { RegisterHTMLHandler } from 'mathjax-full/js/handlers/html';
-import { AllPackages } from 'mathjax-full/js/input/tex/AllPackages';
-import { MathList } from 'mathjax-full/js/core/MathList';
-import { MathItem } from 'mathjax-full/js/core/MathItem';
+import {mathjax} from '@mathjax/src/js/mathjax.js';
+import {TeX} from '@mathjax/src/js/input/tex.js';
+import {CHTML} from '@mathjax/src/js/output/chtml.js';
+import {SVG} from '@mathjax/src/js/output/svg.js';
+import {liteAdaptor} from '@mathjax/src/js/adaptors/liteAdaptor.js';
+import {RegisterHTMLHandler} from '@mathjax/src/js/handlers/html.js';
+import '@mathjax/src/js/util/asyncLoad/esm.js';
+import '@mathjax/src/js/input/tex/base/BaseConfiguration.js';
+import '@mathjax/src/js/input/tex/ams/AmsConfiguration.js';
+import '@mathjax/src/js/input/tex/newcommand/NewcommandConfiguration.js';
+import '@mathjax/src/js/input/tex/noundefined/NoUndefinedConfiguration.js';
+import '@mathjax/src/js/input/tex/configmacros/ConfigMacrosConfiguration.js';
+import '@mathjax/src/js/input/tex/boldsymbol/BoldsymbolConfiguration.js';
+import {MathList} from '@mathjax/src/js/core/MathList.js';
+import {MathItem} from '@mathjax/src/js/core/MathItem.js';
 
 export interface MathJaxConfig {
   packages?: string[];
@@ -193,26 +200,40 @@ export class MathJaxService {
       RegisterHTMLHandler(this.adaptor);
 
       // Use AllPackages or a minimal set for better compatibility
-      const packages: string[] = config?.packages || AllPackages;
+      // const packages: string[] = config?.packages || AllPackages;
 
       // Create TeX input jax with correct configuration structure
+      // this.inputJax = new TeX({
+      //   packages: packages,
+      //   inlineMath: [['\\(', '\\)'], ['$', '$']],
+      //   displayMath: [['\\[', '\\]'], ['$$', '$$']],
+      //   processEscapes: true,
+      //   processEnvironments: true,
+      //   tags: config?.tags || 'ams',
+      //   tagSide: config?.tagSide || 'right',
+      //   tagIndent: config?.tagIndent || '0.8em',
+      //   macros: this.defaultMacros
+      // });
       this.inputJax = new TeX({
-        packages: packages,
+        packages: ['base', 'ams', 'newcommand', 'noundefined', 'configmacros', 'boldsymbol'],
+        macros: this.defaultMacros,
+        processEnvironments: true,
+        processEscapes: true,
         inlineMath: [['\\(', '\\)'], ['$', '$']],
         displayMath: [['\\[', '\\]'], ['$$', '$$']],
-        processEscapes: true,
-        processEnvironments: true,
-        tags: config?.tags || 'ams',
-        tagSide: config?.tagSide || 'right',
-        tagIndent: config?.tagIndent || '0.8em',
-        macros: this.defaultMacros
+        tags: config?.tags || 'ams',   // REQUIRED for \label, \ref, \eqref
+        // tagSide: config?.tagSide || 'right',
+        // tagIndent: config?.tagIndent || '0.8em',
       });
 
-      // Configure SVG output
-      this.outputJax = new SVG({
-        fontCache: 'local',
-        internalSpeechTitles: true
+      this.outputJax = new CHTML({
+        fontURL: 'https://cdn.jsdelivr.net/npm/@mathjax/mathjax-newcm-font/chtml/woff2'
       });
+      // this.outputJax = new SVG({
+      //   // fontURL: 'https://cdn.jsdelivr.net/npm/@mathjax/mathjax-newcm-font/svg',
+      //   // fontURL: 'https://cdn.jsdelivr.net/npm/@mathjax/mathjax-newcm-font/svg',
+      //   fontCache: 'local',
+      // });
 
       // Create MathJax document processor
       this.mathDocument = mathjax.document('', {
@@ -225,7 +246,7 @@ export class MathJaxService {
       console.log("Initialization configuration settings.", {
         inputJax: this.inputJax,
         outputJax: this.outputJax,
-        allPackages: AllPackages,
+        // allPackages: AllPackages,
         ...this.getConfigInfo()
       });
     } catch (error) {
@@ -239,30 +260,69 @@ export class MathJaxService {
    *
    * @param htmlContent
    */
-  renderDocument(htmlContent: string): string {
+  // renderDocument(htmlContent: string): string {
+  //
+  //   // Initialize the service if it was not already
+  //   if (!this.isInitialized) {
+  //     this.initialize();
+  //   }
+  //
+  //   // Return an empty string if the HTML content is empty
+  //   if (htmlContent.trim() === '') {
+  //     return '';
+  //   }
+  //
+  //   try {
+  //     // Create a new document for the content with shared state
+  //     const doc = mathjax.document(htmlContent, {
+  //       InputJax: this.inputJax,
+  //       OutputJax: this.outputJax,
+  //     });
+  //
+  //     // Process all math in the document
+  //     doc.findMath().compile().getMetrics().typeset().updateDocument();
+  //
+  //     // Return the processed HTML
+  //     return this.adaptor.outerHTML(this.adaptor.body(doc.document));
+  //   } catch (error) {
+  //     console.error('Document rendering error:', error);
+  //     return this.renderDocumentFallback(htmlContent);
+  //   }
+  // }
+  async renderDocument(htmlContent: string): Promise<{math: string, mathCss: string}> {
     if (!this.isInitialized) {
-      this.initialize();
+      await this.initialize();
     }
 
-    if (!htmlContent || htmlContent.trim() === '') {
-      return '';
+    if (htmlContent.trim() === '') {
+      // return '';
+      return {math: '', mathCss: ''};
     }
 
     try {
-      // Create a new document for the content with shared state
+      // Create a new document for the content
       const doc = mathjax.document(htmlContent, {
         InputJax: this.inputJax,
         OutputJax: this.outputJax,
       });
 
-      // Process all math in the document
-      doc.findMath().compile().getMetrics().typeset().updateDocument();
+      // Use renderPromise to handle all async operations
+      await doc.renderPromise();
 
       // Return the processed HTML
-      return this.adaptor.outerHTML(this.adaptor.body(doc.document));
+      const math = this.adaptor.outerHTML(this.adaptor.body(doc.document));
+      const mathCss = this.adaptor.cssText(this.outputJax.styleSheet(doc));
+      console.log("Rendered document", {
+        math: math,
+        mathCss: mathCss,
+      })
+      return { math: math, mathCss: mathCss }
+      // return math
     } catch (error) {
       console.error('Document rendering error:', error);
-      return this.renderDocumentFallback(htmlContent);
+      // return this.renderDocumentFallback(htmlContent);
+      // return "";
+      return {math: '', mathCss: ''};
     }
   }
 

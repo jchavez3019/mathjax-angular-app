@@ -1,9 +1,19 @@
 // app-math-document.component.ts
-import {Component, inject, Input, OnInit, Renderer2} from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  inject,
+  Input,
+  NgZone,
+  OnInit,
+  Renderer2, ViewChild,
+  ViewEncapsulation
+} from '@angular/core';
 import { MathJaxConfig, MathJaxService } from './mathjax.service';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {DocumentMetadata, DocumentService} from './document.service';
-import { firstValueFrom } from 'rxjs';
+import {firstValueFrom, map, filter} from 'rxjs';
 import {JsonPipe, NgIf} from '@angular/common';
 
 @Component({
@@ -11,8 +21,12 @@ import {JsonPipe, NgIf} from '@angular/common';
   templateUrl: 'app-math-document.component.html',
   styleUrl: 'app-math-document.component.css',
   imports: [NgIf, JsonPipe],
+  encapsulation: ViewEncapsulation.None
 })
 export class MathDocumentComponent implements OnInit {
+
+  // @ViewChild('mathStyle', { static: false }) private mathStyleEl!: ElementRef<HTMLStyleElement>;
+
   // Path to the HTML document to be rendered. This should be an HTML document rendered from Pandoc.
   @Input({ required: true }) documentPath!: string;
   // Additional configurations to use with MathJax on this document.
@@ -28,10 +42,15 @@ export class MathDocumentComponent implements OnInit {
   private readonly sanitizer = inject(DomSanitizer);
   private readonly renderer = inject(Renderer2);
 
+  private readonly cdr: ChangeDetectorRef = inject(ChangeDetectorRef);
+  private readonly zone: NgZone = inject(NgZone);
+  // private cdr: ChangeDetectorRef, private zone: NgZone
+
   loading = false;
   error: string | null = null;
   renderedContent: SafeHtml = '';
-  mathStyles: SafeHtml = '';
+  // mathStyles: SafeHtml = '';
+  mathStyles: string = '';
   showDebugInfo = false;
   debugInfo: any = {};
   mathJaxConfigInfo: any = {};
@@ -43,6 +62,19 @@ export class MathDocumentComponent implements OnInit {
     if (this.autoLoad) {
       this.loadDocument();
     }
+
+    // firstValueFrom(
+    //   this.mathJaxService.cssStyling$.pipe(
+    //     // Filter out the style if it is an empty string
+    //     filter((style: string) => style !== ''),
+    //     // Map the style to a SafeHtml data type so that we can insert it into the document
+    //     map<string, SafeHtml>((style: string) => this.sanitizer.bypassSecurityTrustHtml(style)),
+    //   )
+    // ).then((style: SafeHtml) => {
+    //   // Once we get the first emission of the MathJax css styling, inject it into the document
+    //   this.mathStyles = style;
+    // });
+
   }
 
   /**
@@ -54,12 +86,10 @@ export class MathDocumentComponent implements OnInit {
       this.loading = true;
       this.error = null;
 
-      // Load document
-      const result: { content: string; metadata?: DocumentMetadata } = await firstValueFrom(
+      // Load the document and unpack its contents
+      const { content: docContent, metadata: docMetadata } = await firstValueFrom(
         this.documentService.loadDocument(this.documentPath)
       );
-      // Unpack the content and metadata of the document.
-      const { content, metadata } = result;
 
       // Merge configurations - metadata takes precedence over component input
       const finalConfig: MathJaxConfig = {
@@ -67,13 +97,13 @@ export class MathDocumentComponent implements OnInit {
         ...this.mathConfig,
         // Since the metadata is passed second, it will write over any fields defined by
         // the component input.
-        ...metadata?.mathConfig
+        ...docMetadata?.mathConfig
       };
 
       console.log('Final MathJax config:', finalConfig);
 
       // Initialize MathJax with final config
-      // this.mathJaxService.initialize(finalConfig);
+      // this.mathJaxService.initialize();
 
       // Set section if specified in config
       // if (finalConfig.section) {
@@ -83,18 +113,20 @@ export class MathDocumentComponent implements OnInit {
       // Get configuration info for debugging
       this.mathJaxConfigInfo = this.mathJaxService.getConfigInfo();
 
-      // Get and inject styles
-      const styles = this.mathJaxService.getStyles();
-      this.mathStyles = this.sanitizer.bypassSecurityTrustHtml(styles);
-
-      // Render the document
+      // Render the document and unpack its results.
       console.log('Rendering document content...');
-      const { math: renderedHtml, mathCss: cssString } = await this.mathJaxService.renderDocument(content);
+      // const renderedHtml: string = await this.mathJaxService.renderDocument(docContent);
+      const { mathHTML: renderedHtml, mathCSS: renderedCss } = await this.mathJaxService.renderDocument(docContent);
       this.renderedContent = this.sanitizer.bypassSecurityTrustHtml(renderedHtml);
 
-      const styleEl = this.renderer.createElement('style');
-      styleEl.textContent = cssString;
-      this.renderer.appendChild(document.head, styleEl);
+
+      // const styleEl = this.renderer.createElement('style');
+      // styleEl.textContent = renderedCss;
+      // this.renderer.appendChild(document.head, styleEl);
+      //
+      // if (this.mathStyleEl?.nativeElement) {
+      //   this.mathStyleEl.nativeElement.textContent = renderedCss;
+      // }
 
       console.log('Document rendered successfully');
 
@@ -122,32 +154,36 @@ export class MathDocumentComponent implements OnInit {
     this.showDebugInfo = !this.showDebugInfo;
   }
 
+  // TODO:
+  //  Would like to keep the methods below, but need to figure out and test how to properly
+  //  render individual LaTeX expressions.
+
   /**
    * Method to render individual math expressions.
    * @param latex
    */
-  async renderInlineMath(latex: string): Promise<SafeHtml> {
-    try {
-      const html = await this.mathJaxService.renderMath(latex, false);
-      return this.sanitizer.bypassSecurityTrustHtml(html);
-    } catch (error) {
-      console.error('Error rendering inline math:', error);
-      return this.sanitizer.bypassSecurityTrustHtml(
-        `<span class="math-error">Error: ${latex}</span>`
-      );
-    }
-  }
-
-  async renderDisplayMath(latex: string): Promise<SafeHtml> {
-    try {
-      const html = await this.mathJaxService.renderMath(latex, true);
-      return this.sanitizer.bypassSecurityTrustHtml(html);
-    } catch (error) {
-      console.error('Error rendering display math:', error);
-      return this.sanitizer.bypassSecurityTrustHtml(
-        `<span class="math-error">Error: ${latex}</span>`
-      );
-    }
-  }
+  // async renderInlineMath(latex: string): Promise<SafeHtml> {
+  //   try {
+  //     const html = await this.mathJaxService.renderMath(latex, false);
+  //     return this.sanitizer.bypassSecurityTrustHtml(html);
+  //   } catch (error) {
+  //     console.error('Error rendering inline math:', error);
+  //     return this.sanitizer.bypassSecurityTrustHtml(
+  //       `<span class="math-error">Error: ${latex}</span>`
+  //     );
+  //   }
+  // }
+  //
+  // async renderDisplayMath(latex: string): Promise<SafeHtml> {
+  //   try {
+  //     const html = await this.mathJaxService.renderMath(latex, true);
+  //     return this.sanitizer.bypassSecurityTrustHtml(html);
+  //   } catch (error) {
+  //     console.error('Error rendering display math:', error);
+  //     return this.sanitizer.bypassSecurityTrustHtml(
+  //       `<span class="math-error">Error: ${latex}</span>`
+  //     );
+  //   }
+  // }
 
 }

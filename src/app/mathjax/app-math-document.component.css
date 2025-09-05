@@ -92,60 +92,60 @@
   margin: 0;
 }
 
-.math-content {
-  /* Enhanced math styling */
-  font-family: 'Times New Roman', serif;
-}
+/*.math-content {*/
+/*  !* Enhanced math styling *!*/
+/*  font-family: 'Times New Roman', serif;*/
+/*}*/
 
-.math-content .MathJax {
-  outline: 0;
-}
+/*.math-content .MathJax {*/
+/*  outline: 0;*/
+/*}*/
 
-.math-content .math-error {
-  background: #ffe6e6;
-  color: #cc0000;
-  padding: 2px 4px;
-  border-radius: 2px;
-  font-family: monospace;
-  display: inline-block;
-  margin: 2px;
-  border: 1px solid #ffcccc;
-}
+/*.math-content .math-error {*/
+/*  background: #ffe6e6;*/
+/*  color: #cc0000;*/
+/*  padding: 2px 4px;*/
+/*  border-radius: 2px;*/
+/*  font-family: monospace;*/
+/*  display: inline-block;*/
+/*  margin: 2px;*/
+/*  border: 1px solid #ffcccc;*/
+/*}*/
 
-/* Equation numbering and referencing styles */
-.math-content .mjx-display {
-  display: block;
-  text-align: center;
-  margin: 1.5em 0;
-  position: relative;
-}
+/*!* Equation numbering and referencing styles *!*/
+/*.math-content .mjx-display {*/
+/*  display: block;*/
+/*  text-align: center;*/
+/*  margin: 1.5em 0;*/
+/*  position: relative;*/
+/*}*/
 
-.math-content .mjx-tag {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  font-weight: normal;
-  color: #666;
-}
+/*.math-content .mjx-tag {*/
+/*  position: absolute;*/
+/*  right: 0;*/
+/*  top: 50%;*/
+/*  transform: translateY(-50%);*/
+/*  font-weight: normal;*/
+/*  color: #666;*/
+/*}*/
 
-/* Better spacing for inline math */
-.math-content .MathJax[display="false"] {
-  margin: 0 0.2em;
-}
+/*!* Better spacing for inline math *!*/
+/*.math-content .MathJax[display="false"] {*/
+/*  margin: 0 0.2em;*/
+/*}*/
 
-/* Paragraph styling for mathematical text */
-.math-content p {
-  margin: 1em 0;
-  text-align: justify;
-}
+/*!* Paragraph styling for mathematical text *!*/
+/*.math-content p {*/
+/*  margin: 1em 0;*/
+/*  text-align: justify;*/
+/*}*/
 
-/* Handle equation references */
-.math-content a[href*="mjx-eqn"] {
-  color: #0066cc;
-  text-decoration: none;
-}
+/*!* Handle equation references *!*/
+/*.math-content a[href*="mjx-eqn"] {*/
+/*  color: #0066cc;*/
+/*  text-decoration: none;*/
+/*}*/
 
-.math-content a[href*="mjx-eqn"]:hover {
-  text-decoration: underline;
-}
+/*.math-content a[href*="mjx-eqn"]:hover {*/
+/*  text-decoration: underline;*/
+/*}*/

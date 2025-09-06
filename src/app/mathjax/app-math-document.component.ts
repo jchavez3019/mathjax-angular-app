@@ -25,7 +25,7 @@ import {JsonPipe, NgIf} from '@angular/common';
 })
 export class MathDocumentComponent implements OnInit {
 
-  // @ViewChild('mathStyle', { static: false }) private mathStyleEl!: ElementRef<HTMLStyleElement>;
+  @ViewChild('mathStyle', { static: false }) private mathStyleEl!: ElementRef<HTMLStyleElement>;
 
   // Path to the HTML document to be rendered. This should be an HTML document rendered from Pandoc.
   @Input({ required: true }) documentPath!: string;
@@ -40,17 +40,11 @@ export class MathDocumentComponent implements OnInit {
   private readonly mathJaxService = inject(MathJaxService);
   private readonly documentService = inject(DocumentService);
   private readonly sanitizer = inject(DomSanitizer);
-  private readonly renderer = inject(Renderer2);
-
-  private readonly cdr: ChangeDetectorRef = inject(ChangeDetectorRef);
-  private readonly zone: NgZone = inject(NgZone);
-  // private cdr: ChangeDetectorRef, private zone: NgZone
+  private readonly elementRef = inject(ElementRef);
 
   loading = false;
   error: string | null = null;
   renderedContent: SafeHtml = '';
-  // mathStyles: SafeHtml = '';
-  mathStyles: string = '';
   showDebugInfo = false;
   debugInfo: any = {};
   mathJaxConfigInfo: any = {};
@@ -119,16 +113,14 @@ export class MathDocumentComponent implements OnInit {
       const { mathHTML: renderedHtml, mathCSS: renderedCss } = await this.mathJaxService.renderDocument(docContent);
       this.renderedContent = this.sanitizer.bypassSecurityTrustHtml(renderedHtml);
 
+      const styleEl = document.createElement('style');
+      styleEl.textContent = renderedCss;
+      this.elementRef.nativeElement.appendChild(styleEl);
 
-      // const styleEl = this.renderer.createElement('style');
-      // styleEl.textContent = renderedCss;
-      // this.renderer.appendChild(document.head, styleEl);
-      //
-      // if (this.mathStyleEl?.nativeElement) {
-      //   this.mathStyleEl.nativeElement.textContent = renderedCss;
-      // }
-
-      console.log('Document rendered successfully');
+      console.log('Document rendered successfully', {
+        renderedHtml: renderedHtml,
+        renderedCss: renderedCss,
+      });
 
     } catch (error: any) {
       this.error = error.message || 'Failed to load document';

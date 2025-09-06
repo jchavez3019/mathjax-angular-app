@@ -35,11 +35,7 @@ export class MathJaxService {
   private adaptor: LiteAdaptor | null = null; // DOM adaptor used by MathJax in Node environments to manipulate HTML and compute styles
   private inputJax: TeX<any, any, any> | null = null; // Configured TeX input processor
   private outputJax: CHTML<any, any, any> | null = null; // Configured CHTML output processor
-  private mathDocument: MathDocument<
-    TeX<any, any, any>,
-    CHTML<any, any, any>,
-    LiteAdaptor
-  > | null = null; // holds global configuration
+  private mathDocument: MathDocument<any, any, any> | null = null; // holds global configuration
   private isInitialized: boolean = false; // whether the service has been initialized
   private currentSection: number = 1; // TODO: May remove later
 
@@ -208,17 +204,11 @@ export class MathJaxService {
     'boldsymbol', // Adds support for bolding individual math symbols
   ];
 
-  private renderer: Renderer2;
-  private globalStyleElement?: HTMLStyleElement;
-  constructor(private rendererFactory: RendererFactory2) {
-    this.renderer = rendererFactory.createRenderer(null, null);
-  }
-
   /**
    *
    * @param config
    */
-  initialize(config?: MathJaxConfig): void {
+  async initialize(config?: MathJaxConfig): Promise<void> {
     if (this.isInitialized) return;
 
     try {
@@ -265,12 +255,14 @@ export class MathJaxService {
         OutputJax: this.outputJax,
       });
 
+      // await this.outputJax.font.loadDynamicFiles();
+
       // Get the CSS styling to render content nicely
-      const cssText: string = this.adaptor.cssText(this.outputJax.styleSheet(this.mathDocument));
+      const cssText: string = this.adaptor.cssText(this.outputJax.styleSheet(this.mathDocument)).replace(/\n/g, "");
       this.cssStylingSubject.next(cssText);
 
       // Inject CSS globally
-      this.injectGlobalCSS(cssText);
+      // this.injectGlobalCSS(cssText);
 
       this.isInitialized = true;
       console.log('MathJax service initialized successfully');
@@ -286,18 +278,23 @@ export class MathJaxService {
     }
   }
 
-  private injectGlobalCSS(cssText: string): void {
-    // Remove existing global style if it exists
-    if (this.globalStyleElement) {
-      this.renderer.removeChild(document.head, this.globalStyleElement);
-    }
-
-    // Create and inject new global style
-    this.globalStyleElement = this.renderer.createElement('style');
-    this.globalStyleElement!.setAttribute('data-mathjax-global', 'true'); // For easy identification
-    this.globalStyleElement!.textContent = cssText;
-    this.renderer.appendChild(document.head, this.globalStyleElement);
-  }
+  // private injectGlobalCSS(cssText: string): void {
+  //
+  //   console.log("Injecting global css in MathJax service", {
+  //     globalCssText: cssText,
+  //   });
+  //
+  //   // Remove existing global style if it exists
+  //   if (this.globalStyleElement) {
+  //     this.renderer.removeChild(document.head, this.globalStyleElement);
+  //   }
+  //
+  //   // Create and inject new global style
+  //   this.globalStyleElement = this.renderer.createElement('style');
+  //   this.globalStyleElement!.setAttribute('data-mathjax-global', 'true'); // For easy identification
+  //   this.globalStyleElement!.textContent = cssText;
+  //   this.renderer.appendChild(document.head, this.globalStyleElement);
+  // }
 
   /**
    *
@@ -329,7 +326,7 @@ export class MathJaxService {
       // Return the processed HTML content and the CSS styling to render the
       // content cleanly
       const mathHTML = this.adaptor!.outerHTML(this.adaptor!.body(doc.document));
-      const mathCSS = this.adaptor!.cssText(this.outputJax!.styleSheet(doc));
+      const mathCSS = this.adaptor!.cssText(this.outputJax!.styleSheet(doc)).replace(/\n/g, "");
       console.log("Rendered document", {
         mathHTML: mathHTML,
         mathCSS: mathCSS,

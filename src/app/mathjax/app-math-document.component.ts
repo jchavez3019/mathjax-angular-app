@@ -15,6 +15,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {DocumentMetadata, DocumentService} from './document.service';
 import {firstValueFrom, map, filter} from 'rxjs';
 import {JsonPipe, NgIf} from '@angular/common';
+import {ActivatedRoute, Params, UrlSegment} from '@angular/router';
 
 @Component({
   selector: 'app-math-document',
@@ -25,14 +26,11 @@ import {JsonPipe, NgIf} from '@angular/common';
 })
 export class MathDocumentComponent implements OnInit {
 
-  @ViewChild('mathStyle', { static: false }) private mathStyleEl!: ElementRef<HTMLStyleElement>;
-
   // Path to the HTML document to be rendered. This should be an HTML document rendered from Pandoc.
-  @Input({ required: true }) documentPath!: string;
+  // @Input({ required: true }) documentPath!: string;
+  private documentPath: string | null= null;
   // Additional configurations to use with MathJax on this document.
   @Input() mathConfig?: MathJaxConfig;
-  // If true, loads the content as soon as the component is initialized.
-  @Input() autoLoad = true;
   // If true, displays the MathJax configuration.
   @Input() showConfigInfo = true;
 
@@ -41,6 +39,7 @@ export class MathDocumentComponent implements OnInit {
   private readonly documentService = inject(DocumentService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly elementRef = inject(ElementRef);
+  private readonly route = inject(ActivatedRoute);
 
   loading = false;
   error: string | null = null;
@@ -48,14 +47,22 @@ export class MathDocumentComponent implements OnInit {
   showDebugInfo = false;
   debugInfo: any = {};
   mathJaxConfigInfo: any = {};
+  urlPath: string = '';
+
+  // urlPath: Observable<UrlSegment[]> = null;
 
   /**
    *
    */
-  ngOnInit(): void {
-    if (this.autoLoad) {
-      this.loadDocument();
-    }
+  async ngOnInit(): Promise<void> {
+
+    const url_query: Params = await firstValueFrom(this.route.queryParams);
+    this.urlPath = window.location.href;
+    this.documentPath = url_query['path'];
+
+    console.log('Full URL as in browser for this document:', this.urlPath);
+
+    this.loadDocument();
 
     // firstValueFrom(
     //   this.mathJaxService.cssStyling$.pipe(
@@ -80,9 +87,15 @@ export class MathDocumentComponent implements OnInit {
       this.loading = true;
       this.error = null;
 
+      if (this.documentPath == null) {
+        console.error("Document Path was empty.")
+      }
+
+      console.log(`Loading document with path: ${this.documentPath}`);
+
       // Load the document and unpack its contents
       const { content: docContent, metadata: docMetadata } = await firstValueFrom(
-        this.documentService.loadDocument(this.documentPath)
+        this.documentService.loadDocument(this.documentPath!)
       );
 
       // Merge configurations - metadata takes precedence over component input
@@ -96,21 +109,13 @@ export class MathDocumentComponent implements OnInit {
 
       console.log('Final MathJax config:', finalConfig);
 
-      // Initialize MathJax with final config
-      // this.mathJaxService.initialize();
-
-      // Set section if specified in config
-      // if (finalConfig.section) {
-      //   this.mathJaxService.setSection(finalConfig.section);
-      // }
-
       // Get configuration info for debugging
       this.mathJaxConfigInfo = this.mathJaxService.getConfigInfo();
 
       // Render the document and unpack its results.
       console.log('Rendering document content...');
       // const renderedHtml: string = await this.mathJaxService.renderDocument(docContent);
-      const { mathHTML: renderedHtml, mathCSS: renderedCss } = await this.mathJaxService.renderDocument(docContent);
+      const { mathHTML: renderedHtml, mathCSS: renderedCss } = await this.mathJaxService.renderDocument(this.urlPath, docContent);
       this.renderedContent = this.sanitizer.bypassSecurityTrustHtml(renderedHtml);
 
       const styleEl = document.createElement('style');

@@ -1,0 +1,15 @@
+<mat-toolbar color="primary">
+  <button mat-button [matMenuTriggerFor]="menu">Documents</button>
+</mat-toolbar>
+
+<mat-menu #menu="matMenu">
+  <button mat-menu-item [routerLink]="['/document']" [queryParams]="{ path: '/assets/output1.html' }">
+    Document 1
+  </button>
+  <button mat-menu-item [routerLink]="['/document']" [queryParams]="{ path: '/assets/output2.html' }">
+    Document 2
+  </button>
+  <button mat-menu-item [routerLink]="['/document']" [queryParams]="{ path: '/assets/output3.html' }">
+    Document 3
+  </button>
+</mat-menu>

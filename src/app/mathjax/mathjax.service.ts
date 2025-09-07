@@ -258,7 +258,7 @@ export class MathJaxService {
       // await this.outputJax.font.loadDynamicFiles();
 
       // Get the CSS styling to render content nicely
-      const cssText: string = this.adaptor.cssText(this.outputJax.styleSheet(this.mathDocument)).replace(/\n/g, "");
+      const cssText: string = this.adaptor.cssText(this.outputJax.styleSheet(this.mathDocument));
       this.cssStylingSubject.next(cssText);
 
       // Inject CSS globally
@@ -278,29 +278,11 @@ export class MathJaxService {
     }
   }
 
-  // private injectGlobalCSS(cssText: string): void {
-  //
-  //   console.log("Injecting global css in MathJax service", {
-  //     globalCssText: cssText,
-  //   });
-  //
-  //   // Remove existing global style if it exists
-  //   if (this.globalStyleElement) {
-  //     this.renderer.removeChild(document.head, this.globalStyleElement);
-  //   }
-  //
-  //   // Create and inject new global style
-  //   this.globalStyleElement = this.renderer.createElement('style');
-  //   this.globalStyleElement!.setAttribute('data-mathjax-global', 'true'); // For easy identification
-  //   this.globalStyleElement!.textContent = cssText;
-  //   this.renderer.appendChild(document.head, this.globalStyleElement);
-  // }
-
   /**
    *
    * @param htmlContent
    */
-  async renderDocument(htmlContent: string): Promise<{mathHTML: string, mathCSS: string}> {
+  async renderDocument(documetPath: string, htmlContent: string): Promise<{mathHTML: string, mathCSS: string}> {
 
     // Initialize the service if not done already
     if (!this.isInitialized) {
@@ -326,16 +308,33 @@ export class MathJaxService {
       // Return the processed HTML content and the CSS styling to render the
       // content cleanly
       const mathHTML = this.adaptor!.outerHTML(this.adaptor!.body(doc.document));
-      const mathCSS = this.adaptor!.cssText(this.outputJax!.styleSheet(doc)).replace(/\n/g, "");
+      const mathCSS = this.adaptor!.cssText(this.outputJax!.styleSheet(doc));
+
+      // correct the anchor links
+      const correctedMathHTML = this.fixAnchorLinks(documetPath, mathHTML);
+
       console.log("Rendered document", {
-        mathHTML: mathHTML,
+        mathHTML: correctedMathHTML,
+        uncorrectedMathHTML: mathHTML,
         mathCSS: mathCSS,
       });
-      return { mathHTML: mathHTML, mathCSS: mathCSS }
+      return { mathHTML: correctedMathHTML, mathCSS: mathCSS }
     } catch (error) {
       console.error('Document rendering error:', error);
       return {mathHTML: '', mathCSS: ''};
     }
+  }
+
+  /**
+   * This MathJax renderer in this service does not consistently provide the correct anchor references for equation
+   * references. Instead, we must manually fix this in the HTML by appending the anchor to the correct URL.
+   * @param location -- Correct URL of the document before adding the anchor.
+   * @param html -- The rendered HTML from MathJax which we will modify.
+   * @private
+   */
+  private fixAnchorLinks(location: string, html: string): string {
+    console.log(`Location given for html replacing: ${location}`)
+    return html.replace(/href=(["'])(?:https?:\/\/[^/#]+)?\/?#([^"']+)\1/g, `href=$1${location}#$2$1`);
   }
 
   /**

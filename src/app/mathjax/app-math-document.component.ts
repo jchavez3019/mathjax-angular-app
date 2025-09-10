@@ -56,13 +56,21 @@ export class MathDocumentComponent implements OnInit {
    */
   async ngOnInit(): Promise<void> {
 
-    const url_query: Params = await firstValueFrom(this.route.queryParams);
-    this.urlPath = window.location.href;
-    this.documentPath = url_query['path'];
+    this.route.paramMap.subscribe(param => {
+      this.documentPath = param.get('documentPath');
+      this.urlPath = window.location.href;
+      console.log('Full URL as in browser for this document:', this.urlPath);
 
-    console.log('Full URL as in browser for this document:', this.urlPath);
+      this.loadDocument();
+    });
 
-    this.loadDocument();
+    // const url_query: Params = await firstValueFrom(this.route.queryParams);
+    // this.urlPath = window.location.href;
+    // this.documentPath = url_query['path'];
+
+    // console.log('Full URL as in browser for this document:', this.urlPath);
+
+    // this.loadDocument();
 
     // firstValueFrom(
     //   this.mathJaxService.cssStyling$.pipe(
@@ -117,10 +125,6 @@ export class MathDocumentComponent implements OnInit {
       // const renderedHtml: string = await this.mathJaxService.renderDocument(docContent);
       const { mathHTML: renderedHtml, mathCSS: renderedCss } = await this.mathJaxService.renderDocument(this.urlPath, docContent);
       this.renderedContent = this.sanitizer.bypassSecurityTrustHtml(renderedHtml);
-
-      const styleEl = document.createElement('style');
-      styleEl.textContent = renderedCss;
-      this.elementRef.nativeElement.appendChild(styleEl);
 
       console.log('Document rendered successfully', {
         renderedHtml: renderedHtml,

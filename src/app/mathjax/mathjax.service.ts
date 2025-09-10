@@ -1,5 +1,5 @@
 // mathjax.service.ts
-import {Injectable, Renderer2, RendererFactory2} from '@angular/core';
+import {inject, Injectable, Renderer2, RendererFactory2} from '@angular/core';
 import {mathjax} from '@mathjax/src/js/mathjax.js';
 import {TeX} from '@mathjax/src/js/input/tex.js';
 import {CHTML} from '@mathjax/src/js/output/chtml.js';
@@ -17,7 +17,10 @@ import '@mathjax/src/js/input/tex/boldsymbol/BoldsymbolConfiguration.js';
 // import {MathItem} from '@mathjax/src/js/core/MathItem.js';
 import {BehaviorSubject} from 'rxjs';
 import {MathDocument} from '@mathjax/src/js/core/MathDocument.js';
+import {OptionList} from '@mathjax/src/js/util/Options.js';
+import {DOCUMENT} from '@angular/common';
 
+// These are all the options that may be used to configure Tex for the service
 export interface MathJaxConfig {
   packages?: string[];
   macros?: { [key: string]: string };
@@ -25,6 +28,13 @@ export interface MathJaxConfig {
   tagSide?: 'right' | 'left';
   tagIndent?: string;
   section?: number;
+}
+
+// A document can specify additional packages and macros to be defined, but they should not modify
+// any other attributes specified in `MathJaxConfig`.
+export interface AdditionalTexOptions {
+  packages?: string[];
+    macros?: { [key: string]: string };
 }
 
 @Injectable({
@@ -38,11 +48,21 @@ export class MathJaxService {
   private mathDocument: MathDocument<any, any, any> | null = null; // holds global configuration
   private isInitialized: boolean = false; // whether the service has been initialized
   private currentSection: number = 1; // TODO: May remove later
+  private mathJaxStyleElement: HTMLStyleElement | null = null;
+  private readonly MATHJAX_STYLE_ID = 'mathjax-global-styles';
 
-  // Private subject and public observable defining in string format the CSS styling to use
+  private baseConfig: OptionList = {};
+
+  // Subject/observable defining in string format the CSS styling to use
   // in order to correctly view the rendered Latex output.
   private cssStylingSubject = new BehaviorSubject<string>('');
   cssStyling$ = this.cssStylingSubject.asObservable();
+
+  // Subject/observable noting the path to the current document that is being rendered. Any documents not matching
+  // this path are not rendered. Because this path is subject to change, components that need to render a document
+  // must subscribe to this observable and re-render their document upon change.
+  private lastRenderedDocumentSubject = new BehaviorSubject<string>('');
+  lastRenderedDocument$ = this.lastRenderedDocumentSubject.asObservable();
 
   private defaultMacros = {
     // Greek letters
@@ -204,73 +224,42 @@ export class MathJaxService {
     'boldsymbol', // Adds support for bolding individual math symbols
   ];
 
+  // Other injected services
+  private readonly renderer: Renderer2;
+  private readonly document: Document = inject(DOCUMENT);
+
+  constructor(
+    private rendererFactory: RendererFactory2,
+  ) {
+    this.renderer = this.rendererFactory.createRenderer(null, null);
+  }
+
   /**
    *
-   * @param config
    */
-  async initialize(config?: MathJaxConfig): Promise<void> {
+  async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
     try {
-      // Create adaptor
-      this.adaptor = liteAdaptor();
-      RegisterHTMLHandler(this.adaptor);
-
-      this.inputJax = new TeX({
-        // Combine unique TeX packages from out default list and the user specified packages
-        packages: Array.from(new Set(
-          // Append our default values and the packages specified for initialization
-          [
-            // Default packages that we would like to always use
-            ...this.defaultTexPackages,
-            // If packages is null or undefined, use empty array as the default
-            ...(config?.packages ?? [])
-          ]
-        )),
+      this.baseConfig = {
+        packages: this.defaultTexPackages,
         macros: this.defaultMacros,
         processEnvironments: true,
         processEscapes: true,
         inlineMath: [['\\(', '\\)'], ['$', '$']],
         displayMath: [['\\[', '\\]'], ['$$', '$$']],
         tags: 'all',
-      });
+      }
+
+      this.adaptor = liteAdaptor();
+      RegisterHTMLHandler(this.adaptor);
 
       this.outputJax = new CHTML({
         fontURL: 'https://cdn.jsdelivr.net/npm/@mathjax/mathjax-newcm-font/chtml/woff2'
       });
 
-      // TODO (9/4/25):
-      //  Alternative configuration for rendering LaTex as SVG components. High resolution and better adept at scaling,
-      //  but can use a lot of memory if many equations are being rendered in SVG format. Decide whether this will
-      //  ever be used or remove entirely.
-      // this.outputJax = new SVG({
-      //   // fontURL: 'https://cdn.jsdelivr.net/npm/@mathjax/mathjax-newcm-font/svg',
-      //   // fontURL: 'https://cdn.jsdelivr.net/npm/@mathjax/mathjax-newcm-font/svg',
-      //   fontCache: 'local',
-      // });
-
-      // Create MathJax document processor
-      this.mathDocument = mathjax.document('', {
-        InputJax: this.inputJax,
-        OutputJax: this.outputJax,
-      });
-
-      // await this.outputJax.font.loadDynamicFiles();
-
-      // Get the CSS styling to render content nicely
-      const cssText: string = this.adaptor.cssText(this.outputJax.styleSheet(this.mathDocument));
-      this.cssStylingSubject.next(cssText);
-
-      // Inject CSS globally
-      // this.injectGlobalCSS(cssText);
-
       this.isInitialized = true;
       console.log('MathJax service initialized successfully');
-      console.log("Initialization configuration settings.", {
-        inputJax: this.inputJax,
-        outputJax: this.outputJax,
-        ...this.getConfigInfo()
-      });
     } catch (error) {
       console.error('Failed to initialize MathJax:', error);
       this.isInitialized = false;
@@ -279,14 +268,53 @@ export class MathJaxService {
   }
 
   /**
-   *
-   * @param htmlContent
+   * Reset and create fresh MathJax components
+   * This ensures clean state between document renders
+   * @param inputConfig
    */
-  async renderDocument(documetPath: string, htmlContent: string): Promise<{mathHTML: string, mathCSS: string}> {
+  private resetMathJaxState(inputConfig?: AdditionalTexOptions): TeX<any, any, any> {
+    // Create fresh input processor with clean state
+
+    let inputJax: TeX<any, any, any>;
+    if (!!inputConfig) {
+      // We were given additional input configuration values to use
+      // for rendering the document. Merge them with the default
+      // configuration.
+      inputJax = new TeX({
+        // Fill in the base configuration first
+        ...this.baseConfig,
+        // Overwrite any necessary values
+        packages: Array.from(new Set([
+          ...this.baseConfig['packages'],
+          ...inputConfig['packages'] ?? []
+        ])),
+        macros: {
+          ...this.baseConfig['macros'],
+          ...inputConfig['macros'] ?? {},
+        },
+      });
+    }
+    else {
+      // No configuration given. Use the default configuration.
+      inputJax = new TeX(this.baseConfig);
+    }
+
+    return inputJax;
+  }
+
+  /**
+   *
+   * @param documentPath
+   * @param htmlContent
+   * @param renderConfig
+   */
+  async renderDocument(
+    documentPath: string, htmlContent: string, renderConfig?: AdditionalTexOptions,
+  ): Promise<{mathHTML: string, mathCSS: string}> {
 
     // Initialize the service if not done already
     if (!this.isInitialized) {
-      this.initialize();
+      await this.initialize();
     }
 
     // If the string is empty, return an empty string with no styling by default
@@ -296,9 +324,12 @@ export class MathJaxService {
 
     try {
 
-      // Create a new document for the content
+      // Reset the input TeX processor
+      const inputJax = this.resetMathJaxState(renderConfig);
+
+      // Create a new document with the fresh input processor
       const doc = mathjax.document(htmlContent, {
-        InputJax: this.inputJax,
+        InputJax: inputJax,
         OutputJax: this.outputJax,
       });
 
@@ -311,17 +342,60 @@ export class MathJaxService {
       const mathCSS = this.adaptor!.cssText(this.outputJax!.styleSheet(doc));
 
       // correct the anchor links
-      const correctedMathHTML = this.fixAnchorLinks(documetPath, mathHTML);
+      const correctedMathHTML = this.fixAnchorLinks(documentPath, mathHTML);
+
+      // Update the global styling sheet with the newly rendered CSS
+      this.injectGlobalMathJaxStyles(mathCSS);
 
       console.log("Rendered document", {
         mathHTML: correctedMathHTML,
         uncorrectedMathHTML: mathHTML,
         mathCSS: mathCSS,
       });
+      // Emit that a new document has been rendered.
+      this.lastRenderedDocumentSubject.next(documentPath);
       return { mathHTML: correctedMathHTML, mathCSS: mathCSS }
     } catch (error) {
       console.error('Document rendering error:', error);
       return {mathHTML: '', mathCSS: ''};
+    }
+  }
+
+  /**
+   * Inject MathJax CSS globally into the document head
+   */
+  private injectGlobalMathJaxStyles(css: string): void {
+    // Remove existing styles
+    this.removeGlobalMathJaxStyles();
+
+    if (!css || css.trim() === '') {
+      return;
+    }
+
+    // Create and inject new style element
+    this.mathJaxStyleElement = this.renderer.createElement('style');
+    this.renderer.setAttribute(this.mathJaxStyleElement, 'id', this.MATHJAX_STYLE_ID);
+    this.renderer.setAttribute(this.mathJaxStyleElement, 'type', 'text/css');
+    this.renderer.appendChild(this.mathJaxStyleElement, this.renderer.createText(css));
+    this.renderer.appendChild(this.document.head, this.mathJaxStyleElement);
+  }
+
+  /**
+   * Remove global MathJax styles
+   */
+  private removeGlobalMathJaxStyles(): void {
+
+    // Primary manner of removing the styling by reference
+    if (this.mathJaxStyleElement) {
+      this.renderer.removeChild(this.document.head, this.mathJaxStyleElement);
+      this.mathJaxStyleElement = null;
+      return
+    }
+
+    // Fallback manner of removing the styling by id in case the reference above is lost
+    const existingStyle = this.document.getElementById(this.MATHJAX_STYLE_ID);
+    if (existingStyle) {
+      this.renderer.removeChild(this.document.head, existingStyle);
     }
   }
 
@@ -394,29 +468,6 @@ export class MathJaxService {
 
   /**
    *
-   * @param macros
-   */
-  // addMacros(macros: { [key: string]: string }): void {
-  //   if (!this.isInitialized) {
-  //     console.warn('MathJax not initialized. Call initialize() first.');
-  //     return;
-  //   }
-  //
-  //   try {
-  //     const config = this.inputJax!.parseOptions;
-  //     if (config && config.options && config.options.macros) {
-  //       Object.assign(config.options.macros, macros);
-  //       console.log('Added macros:', Object.keys(macros));
-  //     } else {
-  //       console.warn('Unable to access macros configuration');
-  //     }
-  //   } catch (error) {
-  //     console.error('Error adding macros:', error);
-  //   }
-  // }
-
-  /**
-   *
    */
   reset(): void {
     this.isInitialized = false;
@@ -425,6 +476,9 @@ export class MathJaxService {
     this.outputJax = null;
     this.mathDocument = null;
     this.currentSection = 1;
+    this.removeGlobalMathJaxStyles();
+    this.cssStylingSubject.complete();
+    this.lastRenderedDocumentSubject.complete();
   }
 
   /**

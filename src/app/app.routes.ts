@@ -5,7 +5,7 @@ import {NgModule} from '@angular/core';
 
 export const routes: Routes = [
   // Add your routes here
-  { path: 'document', component: MathDocumentComponent },
+  { path: 'document/:documentPath', component: MathDocumentComponent },
   {path: '', component: DocumentHomeComponent, pathMatch: 'full'},
   {path: '**', redirectTo: ''}
 ];

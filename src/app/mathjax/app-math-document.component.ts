@@ -118,7 +118,7 @@ export class MathDocumentComponent implements OnInit {
       console.log('Final MathJax config:', finalConfig);
 
       // Get configuration info for debugging
-      this.mathJaxConfigInfo = this.mathJaxService.getConfigInfo();
+      // this.mathJaxConfigInfo = this.mathJaxService.getConfigInfo();
 
       // Render the document and unpack its results.
       console.log('Rendering document content...');
@@ -137,7 +137,7 @@ export class MathDocumentComponent implements OnInit {
         error: error,
         mathJaxConfig: this.mathJaxConfigInfo,
         documentPath: this.documentPath,
-        mathJaxReady: this.mathJaxService.isReady()
+        // mathJaxReady: this.mathJaxService.isReady()
       };
       console.error('Document loading error:', error);
     } finally {

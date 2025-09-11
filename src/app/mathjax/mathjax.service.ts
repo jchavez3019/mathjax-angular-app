@@ -3,7 +3,6 @@ import {inject, Injectable, Renderer2, RendererFactory2} from '@angular/core';
 import {mathjax} from '@mathjax/src/js/mathjax.js';
 import {TeX} from '@mathjax/src/js/input/tex.js';
 import {CHTML} from '@mathjax/src/js/output/chtml.js';
-import {SVG} from '@mathjax/src/js/output/svg.js';
 import {LiteAdaptor, liteAdaptor} from '@mathjax/src/js/adaptors/liteAdaptor.js';
 import {RegisterHTMLHandler} from '@mathjax/src/js/handlers/html.js';
 import '@mathjax/src/js/util/asyncLoad/esm.js';
@@ -19,6 +18,10 @@ import {BehaviorSubject} from 'rxjs';
 import {MathDocument} from '@mathjax/src/js/core/MathDocument.js';
 import {OptionList} from '@mathjax/src/js/util/Options.js';
 import {DOCUMENT} from '@angular/common';
+import {MathJaxNewcmFont} from '@mathjax/mathjax-newcm-font/mjs/chtml.js';
+
+import {Loader} from '@mathjax/src/js/components/loader.js';
+import {Package} from '@mathjax/src/js/components/package.js';
 
 // These are all the options that may be used to configure Tex for the service
 export interface MathJaxConfig {
@@ -50,13 +53,6 @@ export class MathJaxService {
   private currentSection: number = 1; // TODO: May remove later
   private mathJaxStyleElement: HTMLStyleElement | null = null;
   private readonly MATHJAX_STYLE_ID = 'mathjax-global-styles';
-
-  private baseConfig: OptionList = {};
-
-  // Subject/observable defining in string format the CSS styling to use
-  // in order to correctly view the rendered Latex output.
-  private cssStylingSubject = new BehaviorSubject<string>('');
-  cssStyling$ = this.cssStylingSubject.asObservable();
 
   // Subject/observable noting the path to the current document that is being rendered. Any documents not matching
   // this path are not rendered. Because this path is subject to change, components that need to render a document
@@ -224,6 +220,16 @@ export class MathJaxService {
     'boldsymbol', // Adds support for bolding individual math symbols
   ];
 
+  private baseConfig: OptionList = {
+    packages: this.defaultTexPackages,
+    macros: this.defaultMacros,
+    processEnvironments: true,
+    processEscapes: true,
+    inlineMath: [['\\(', '\\)'], ['$', '$']],
+    displayMath: [['\\[', '\\]'], ['$$', '$$']],
+    tags: 'all',
+  };
+
   // Other injected services
   private readonly renderer: Renderer2;
   private readonly document: Document = inject(DOCUMENT);
@@ -241,20 +247,29 @@ export class MathJaxService {
     if (this.isInitialized) return;
 
     try {
-      this.baseConfig = {
-        packages: this.defaultTexPackages,
-        macros: this.defaultMacros,
-        processEnvironments: true,
-        processEscapes: true,
-        inlineMath: [['\\(', '\\)'], ['$', '$']],
-        displayMath: [['\\[', '\\]'], ['$$', '$$']],
-        tags: 'all',
-      }
+
+      // Loader.addPackage('mathjax-newcm-font', {
+      //   path: '/assets/mathjax-newcm-font', // relative to your deployed site root
+      // });
+
+      //
+      // Record the pre-loaded component files
+      //
+      Loader.preLoaded(
+        'loader', 'startup',
+        'core',
+        'input/tex',
+        'output/chtml',
+        'mathjax-newcm-font'
+      );
+      // mathjax.config.loader.require = (file: any) => import(file);
+      // mathjax.asyncLoad = (file) => import(Package.resolvePath(file));
 
       this.adaptor = liteAdaptor();
       RegisterHTMLHandler(this.adaptor);
 
       this.outputJax = new CHTML({
+        fontData: MathJaxNewcmFont,
         fontURL: 'https://cdn.jsdelivr.net/npm/@mathjax/mathjax-newcm-font/chtml/woff2'
       });
 
@@ -327,6 +342,11 @@ export class MathJaxService {
       // Reset the input TeX processor
       const inputJax = this.resetMathJaxState(renderConfig);
 
+      this.outputJax = new CHTML({
+        fontData: MathJaxNewcmFont,
+        fontURL: 'https://cdn.jsdelivr.net/npm/@mathjax/mathjax-newcm-font/chtml/woff2'
+      });
+
       // Create a new document with the fresh input processor
       const doc = mathjax.document(htmlContent, {
         InputJax: inputJax,
@@ -339,6 +359,7 @@ export class MathJaxService {
       // Return the processed HTML content and the CSS styling to render the
       // content cleanly
       const mathHTML = this.adaptor!.outerHTML(this.adaptor!.body(doc.document));
+      // const mathHTML = this.adaptor!.outerHTML(node);
       const mathCSS = this.adaptor!.cssText(this.outputJax!.styleSheet(doc));
 
       // correct the anchor links
@@ -477,7 +498,6 @@ export class MathJaxService {
     this.mathDocument = null;
     this.currentSection = 1;
     this.removeGlobalMathJaxStyles();
-    this.cssStylingSubject.complete();
     this.lastRenderedDocumentSubject.complete();
   }
 

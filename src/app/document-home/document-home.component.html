@@ -2,14 +2,11 @@
   <button mat-button [matMenuTriggerFor]="menu">Documents</button>
 </mat-toolbar>
 
+<!-- Use a menu to show all the files that can be selected and rendered using MathJax -->
 <mat-menu #menu="matMenu">
-  <button mat-menu-item [routerLink]="['/document', './assets/output1.html']">
-    Document 1
-  </button>
-  <button mat-menu-item [routerLink]="['/document', './assets/output2.html']">
-    Document 2
-  </button>
-  <button mat-menu-item [routerLink]="['/document', './assets/output3.html']">
-    Document 3
-  </button>
+  <div *ngFor="let file of latexFiles">
+    <button mat-menu-item [routerLink]="['/document', file.file]">
+      {{ file.display_name }}
+    </button>
+  </div>
 </mat-menu>

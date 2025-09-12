@@ -1,0 +1,17 @@
+{
+  "outputDir": "assets/",
+  "files": [
+    {
+      "file": "output3.html",
+      "display_name": "Document 3"
+    },
+    {
+      "file": "output1.html",
+      "display_name": "Document 1"
+    },
+    {
+      "file": "output2.html",
+      "display_name": "Document 2"
+    }
+  ]
+}

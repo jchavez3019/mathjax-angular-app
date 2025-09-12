@@ -10,7 +10,7 @@ import {
   Renderer2, ViewChild,
   ViewEncapsulation
 } from '@angular/core';
-import { MathJaxConfig, MathJaxService } from './mathjax.service';
+import {MathJaxConfig, MathJaxService} from './mathjax.service';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {DocumentMetadata, DocumentService} from './document.service';
 import {firstValueFrom, map, filter} from 'rxjs';
@@ -106,31 +106,24 @@ export class MathDocumentComponent implements OnInit {
         this.documentService.loadDocument(this.documentPath!)
       );
 
-      // Merge configurations - metadata takes precedence over component input
-      const finalConfig: MathJaxConfig = {
-        // First set the fields from the component input.
-        ...this.mathConfig,
-        // Since the metadata is passed second, it will write over any fields defined by
-        // the component input.
-        ...docMetadata?.mathConfig
-      };
-
-      console.log('Final MathJax config:', finalConfig);
+      // // Merge configurations - metadata takes precedence over component input
+      // const finalConfig: MathJaxConfig = {
+      //   // First set the fields from the component input.
+      //   ...this.mathConfig,
+      //   // Since the metadata is passed second, it will write over any fields defined by
+      //   // the component input.
+      //   ...docMetadata?.mathConfig
+      // };
+      //
+      // console.log('Final MathJax config:', finalConfig);
 
       // Get configuration info for debugging
-      // this.mathJaxConfigInfo = this.mathJaxService.getConfigInfo();
+      this.mathJaxConfigInfo = this.mathJaxService.getConfigInfo();
 
       // Render the document and unpack its results.
       console.log('Rendering document content...');
-      // const renderedHtml: string = await this.mathJaxService.renderDocument(docContent);
-      const { mathHTML: renderedHtml, mathCSS: renderedCss } = await this.mathJaxService.renderDocument(this.urlPath, docContent);
+      const renderedHtml = await this.mathJaxService.renderDocument(this.urlPath, docContent);
       this.renderedContent = this.sanitizer.bypassSecurityTrustHtml(renderedHtml);
-
-      console.log('Document rendered successfully', {
-        renderedHtml: renderedHtml,
-        renderedCss: renderedCss,
-      });
-
     } catch (error: any) {
       this.error = error.message || 'Failed to load document';
       this.debugInfo = {

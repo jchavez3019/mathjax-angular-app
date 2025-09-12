@@ -2,13 +2,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { catchError, map, Observable, throwError } from 'rxjs';
-import { MathJaxConfig } from './mathjax.service';
 
 export interface DocumentMetadata {
   title?: string;
   author?: string;
   date?: string;
-  mathConfig?: MathJaxConfig;
+  // mathConfig?: MathJaxConfig;
   section?: number;
   description?: string;
 }
@@ -141,7 +140,7 @@ export class DocumentService {
           break;
         case 'mathconfig':
           try {
-            metadata.mathConfig = JSON.parse(value);
+            // metadata.mathConfig = JSON.parse(value);
           } catch {
             console.warn(`Failed to parse mathConfig: ${value}`);
           }
@@ -149,8 +148,8 @@ export class DocumentService {
         default:
           // Store other properties in mathConfig if they look like MathJax settings
           if (['tags', 'tagside', 'tagindent'].includes(key.toLowerCase())) {
-            if (!metadata.mathConfig) metadata.mathConfig = {};
-            (metadata.mathConfig as any)[key] = value;
+            // if (!metadata.mathConfig) metadata.mathConfig = {};
+            // (metadata.mathConfig as any)[key] = value;
           }
           break;
       }

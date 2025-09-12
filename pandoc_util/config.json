@@ -1,0 +1,20 @@
+{
+  "watchDir": "./pandoc_util",
+  "assetsDir": "./src/assets/",
+  "outputDir": "./",
+  "manifestFileName": "latex_files.json",
+  "files": [
+    {
+      "source": "output1.md",
+      "display_name": "Document 1"
+    },
+    {
+      "source": "output2.md",
+      "display_name": "Document 2"
+    },
+    {
+      "source": "output3.md",
+      "display_name": "Document 3"
+    }
+  ]
+}

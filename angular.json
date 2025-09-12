@@ -25,11 +25,6 @@
               {
                 "glob": "**/*",
                 "input": "public"
-              },
-              {
-                "glob": "**/*",
-                "input": "node_modules/@mathjax/mathjax-newcm-font/js",
-                "output": "assets/mathjax-newcm-font"
               }
             ],
             "styles": [

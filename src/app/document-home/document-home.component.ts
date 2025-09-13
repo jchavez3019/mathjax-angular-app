@@ -51,13 +51,6 @@ export class DocumentHomeComponent implements OnInit {
           return a.display_name.localeCompare(b.display_name)
         }
       );
-      //   .map((arrEl: WatchedFile) => {
-      //   // Use the map pipe in order to prepend the output directory to each file.
-      //   return {
-      //     ...arrEl,
-      //     file: this.outputDir + arrEl.file,
-      //   }
-      // });
 
       console.log("From manifest, got data: ", {
         latexFiles: this.latexFiles,

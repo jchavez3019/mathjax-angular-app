@@ -1,17 +1,17 @@
 {
-  "outputDir": "assets/",
   "files": [
     {
-      "file": "output3.html",
+      "file": "assets/latex_docs/output3.html",
       "display_name": "Document 3"
     },
     {
-      "file": "output1.html",
+      "file": "assets/latex_docs/output1.html",
       "display_name": "Document 1"
     },
     {
-      "file": "output2.html",
+      "file": "assets/latex_docs/output2.html",
       "display_name": "Document 2"
     }
-  ]
+  ],
+  "outputDir": "assets/latex_docs"
 }

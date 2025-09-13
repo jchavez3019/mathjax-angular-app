@@ -48,9 +48,7 @@ export class MathDocumentComponent implements OnInit {
   debugInfo: any = {};
   mathJaxConfigInfo: any = {};
   urlPath: string = '';
-
-  // urlPath: Observable<UrlSegment[]> = null;
-
+  
   /**
    *
    */

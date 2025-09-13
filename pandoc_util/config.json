@@ -1,16 +1,18 @@
 {
   "watchDir": "./pandoc_util",
   "assetsDir": "./src/assets/",
-  "outputDir": "./",
+  "outputDir": "./latex_docs",
   "manifestFileName": "latex_files.json",
   "files": [
     {
       "source": "output1.md",
-      "display_name": "Document 1"
+      "display_name": "Document 1",
+      "bibliography_source": "EMDerivation.bib"
     },
     {
       "source": "output2.md",
-      "display_name": "Document 2"
+      "display_name": "Document 2",
+      "bibliography_source": "EMDerivation.bib"
     },
     {
       "source": "output3.md",
